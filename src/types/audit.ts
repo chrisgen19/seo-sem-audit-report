@@ -1,0 +1,151 @@
+export type CheckStatus = "PASS" | "WARN" | "FAIL";
+export type AuditSection = "technical" | "content" | "sem";
+export type AuditProvider = "claude" | "gemini";
+export type AuditStatus = "pending" | "running" | "done" | "failed";
+
+export interface AuditCheckInput {
+  name: string;
+  status: CheckStatus;
+  finding: string;
+  recommendation: string;
+}
+
+export interface AdGroup {
+  name: string;
+  keywords: string;
+  rationale: string;
+}
+
+export interface QuickWin {
+  rank: number;
+  action: string;
+  impact: string;
+  effort: string;
+}
+
+export interface SectionAnalysis {
+  score: number;
+  grade: string;
+  checks: AuditCheckInput[];
+  priority_actions: string[];
+}
+
+export interface SemAnalysis extends SectionAnalysis {
+  strengths: string[];
+  issues: string[];
+  ad_groups: AdGroup[];
+  campaign_recommendations: string[];
+}
+
+export interface AnalysisResult {
+  business_name: string;
+  business_description: string;
+  executive_summary: string;
+  key_strengths: string;
+  key_opportunities: string;
+  technical_seo: SectionAnalysis;
+  content_seo: SectionAnalysis;
+  sem_readiness: SemAnalysis;
+  overall_score: number;
+  overall_grade: string;
+  quick_wins: QuickWin[];
+}
+
+export interface CrawlData {
+  // Page basics
+  status_code?: number;
+  final_url?: string;
+  response_time_ms?: number;
+  content_length?: number;
+  headers?: Record<string, string>;
+  fetch_error?: string;
+
+  // Robots / Sitemap
+  robots_txt_status?: number | string;
+  robots_txt_content?: string;
+  robots_txt_has_sitemap?: boolean;
+  sitemap_status?: number | string;
+  sitemap_url_count?: number;
+  sitemap_contains_target?: boolean;
+
+  // Meta
+  title?: string | null;
+  title_length?: number;
+  meta_description?: string | null;
+  meta_description_length?: number;
+  meta_robots?: string | null;
+  has_viewport?: boolean;
+  charset?: string | null;
+  html_lang?: string | null;
+
+  // Content
+  headings?: Record<string, string[]>;
+  word_count?: number;
+  content_text?: string;
+  duplicate_paragraphs?: string[];
+  paragraph_count?: number;
+
+  // Links
+  internal_links?: Array<{ href: string; text: string; original_href: string }>;
+  internal_link_count?: number;
+  external_links?: Array<{ href: string; text: string; original_href: string }>;
+  external_link_count?: number;
+  tel_links?: string[];
+  has_phone_link?: boolean;
+
+  // Images
+  images?: Array<{
+    src: string;
+    is_placeholder: boolean;
+    alt: string;
+    has_alt: boolean;
+    has_dimensions: boolean;
+    has_lazy_loading: boolean;
+    format: string;
+  }>;
+  image_count?: number;
+
+  // Schema
+  schema_types?: string[];
+  has_schema?: boolean;
+
+  // Forms
+  forms?: Array<{
+    action: string;
+    method: string;
+    field_count: number;
+    fields: Array<{ name: string; type: string }>;
+  }>;
+  form_count?: number;
+
+  // Social
+  og_tags?: Record<string, string>;
+  twitter_tags?: Record<string, string>;
+  has_og_tags?: boolean;
+  has_twitter_tags?: boolean;
+
+  // HTTPS
+  is_https?: boolean;
+  mixed_content?: string[];
+  has_mixed_content?: boolean;
+
+  // Canonical
+  canonical_url?: string | null;
+  has_canonical?: boolean;
+
+  // Tech
+  external_script_count?: number;
+  external_style_count?: number;
+  tech_detected?: string[];
+}
+
+// SSE event shapes for the streaming audit runner
+export type AuditStreamEvent =
+  | { step: "crawl"; message: string }
+  | { step: "crawl_done"; message: string }
+  | { step: "analyze"; message: string }
+  | { step: "analyze_done"; message: string }
+  | { step: "scoring"; message: string }
+  | { step: "saving"; message: string }
+  | { step: "done"; auditId: string }
+  | { step: "error"; message: string };
