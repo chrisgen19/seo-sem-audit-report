@@ -7,6 +7,7 @@ import { ScoreBadge } from "@/components/audit/score-card";
 import { ScoreTrendChart } from "@/components/audit/score-trend-chart";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { DeleteAuditButton } from "@/components/audit/delete-audit-button";
 
 export default async function PageDetailPage({
   params,
@@ -151,6 +152,7 @@ export default async function PageDetailPage({
                   ) : (
                     <span className="text-sm text-amber-600 capitalize">{run.status}</span>
                   )}
+                  <DeleteAuditButton auditId={run.id} />
                 </div>
               </div>
             ))}

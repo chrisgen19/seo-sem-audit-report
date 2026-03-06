@@ -32,3 +32,21 @@ export async function GET(
   if (!auditRun) return Response.json({ error: "Not found" }, { status: 404 });
   return Response.json(auditRun);
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+
+  const auditRun = await db.auditRun.findFirst({
+    where: { id, page: { project: { userId: session.user.id } } },
+  });
+  if (!auditRun) return Response.json({ error: "Not found" }, { status: 404 });
+
+  await db.auditRun.delete({ where: { id } });
+  return new Response(null, { status: 204 });
+}
