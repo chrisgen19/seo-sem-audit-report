@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { statusBadgeClass, cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Rows3, Layers } from "lucide-react";
 
@@ -53,9 +53,8 @@ function PerRowTable({ checks }: { checks: Check[] }) {
           {checks.map((check, i) => {
             const isOpen = openRows.has(i);
             return (
-              <>
+              <React.Fragment key={i}>
                 <tr
-                  key={`row-${i}`}
                   onClick={() => toggle(i)}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                 >
@@ -84,7 +83,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                   </td>
                 </tr>
                 {isOpen && (
-                  <tr key={`detail-${i}`} className="bg-gray-50">
+                  <tr className="bg-gray-50">
                     <td />
                     <td colSpan={3} className="px-4 pb-4 pt-2">
                       <p className="text-gray-700 text-sm">{check.finding}</p>
@@ -99,7 +98,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>
