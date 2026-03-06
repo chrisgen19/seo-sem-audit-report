@@ -30,15 +30,18 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
 
   useEffect(() => {
     let cancelled = false;
+    const abortController = new AbortController();
 
     async function run() {
       const res = await fetch("/api/audits/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId, provider }),
+        signal: abortController.signal,
       });
 
       if (!res.ok) {
+        if (cancelled) return;
         const err = await res.json();
         setLog((prev) => [
           ...prev,
@@ -83,10 +86,13 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
       }
     }
 
-    run();
+    run().catch((err) => {
+      if (err?.name !== "AbortError") throw err;
+    });
 
     return () => {
       cancelled = true;
+      abortController.abort();
       readerRef.current?.cancel();
     };
   }, [pageId, provider, router]);
