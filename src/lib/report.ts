@@ -447,8 +447,9 @@ export async function generateDocxReport(data: ReportData): Promise<Buffer> {
         score?: number | null;
       }>;
 
-      const opportunities = audits.filter((a) => a.group === "opportunity");
-      const diagnostics = audits.filter((a) => a.group === "diagnostic");
+      const sortByScore = (a: { score?: number | null }, b: { score?: number | null }) => (a.score ?? -1) - (b.score ?? -1);
+      const opportunities = audits.filter((a) => a.group === "opportunity").sort(sortByScore);
+      const diagnostics = audits.filter((a) => a.group === "diagnostic").sort(sortByScore);
 
       if (opportunities.length) {
         children.push(
