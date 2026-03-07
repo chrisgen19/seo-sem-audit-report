@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PsiResult, PsiAuditItem } from "@/types/audit";
+import type { PsiResult, PsiAuditItem, PsiDetailHeading, PsiDetailItem } from "@/types/audit";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface PsiSectionProps {
@@ -185,26 +185,186 @@ function AuditGroup({
       {open && (
         <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-              <AuditIcon item={item} />
-              <span className="font-medium text-gray-900">{item.title}</span>
-              {item.displayValue && (
-                <span className="text-gray-400 ml-auto shrink-0">
-                  {item.displayValue}
-                </span>
-              )}
-              {(item.savings_ms || item.savings_bytes) && (
-                <span className="text-red-500 text-xs font-medium ml-auto shrink-0">
-                  {item.savings_ms
-                    ? `Est savings of ${formatSavingsMs(item.savings_ms)}`
-                    : `Est savings of ${formatBytes(item.savings_bytes!)}`}
-                </span>
-              )}
-            </div>
+            <AuditItemRow key={item.id} item={item} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function AuditItemRow({ item }: { item: PsiAuditItem }) {
+  const hasDetails = item.details && item.details.items.length > 0;
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => hasDetails && setExpanded((v) => !v)}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left ${
+          hasDetails ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
+        }`}
+      >
+        <AuditIcon item={item} />
+        <span className="font-medium text-gray-900 flex-1 min-w-0">
+          {item.title}
+        </span>
+        {item.displayValue && (
+          <span className="text-gray-400 shrink-0">
+            {item.displayValue}
+          </span>
+        )}
+        {(item.savings_ms || item.savings_bytes) && (
+          <span className="text-red-500 text-xs font-medium shrink-0">
+            {item.savings_ms
+              ? `Est savings of ${formatSavingsMs(item.savings_ms)}`
+              : `Est savings of ${formatBytes(item.savings_bytes!)}`}
+          </span>
+        )}
+        {hasDetails && (
+          <span className="text-gray-400 shrink-0 ml-1">
+            {expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </span>
+        )}
+      </button>
+
+      {expanded && item.details && (
+        <div className="px-4 pb-3">
+          {item.description && (
+            <p className="text-xs text-gray-500 mb-2">{item.description}</p>
+          )}
+          <DetailTable
+            headings={item.details.headings}
+            items={item.details.items}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailTable({
+  headings,
+  items,
+}: {
+  headings: PsiDetailHeading[];
+  items: PsiDetailItem[];
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="bg-gray-50 border-b border-gray-200">
+            {headings.map((h) => (
+              <th
+                key={h.key}
+                className="text-left px-3 py-2 font-medium text-gray-600 whitespace-nowrap"
+              >
+                {h.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {items.map((row, i) => (
+            <tr key={i} className="hover:bg-gray-50">
+              {headings.map((h) => (
+                <td key={h.key} className="px-3 py-2 text-gray-700">
+                  <DetailCell value={row[h.key]} valueType={h.valueType} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DetailCell({
+  value,
+  valueType,
+}: {
+  value: unknown;
+  valueType?: string;
+}) {
+  if (value === null || value === undefined) {
+    return <span className="text-gray-300">—</span>;
+  }
+
+  // Handle object values (e.g., { type: "url", value: "..." })
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if (obj.type === "url" && typeof obj.value === "string") {
+      return <UrlCell url={obj.value} />;
+    }
+    if (typeof obj.url === "string") {
+      return <UrlCell url={obj.url} />;
+    }
+    if (typeof obj.value === "string" || typeof obj.value === "number") {
+      return <DetailCell value={obj.value} valueType={valueType} />;
+    }
+    return <span className="text-gray-400">{JSON.stringify(value)}</span>;
+  }
+
+  if (valueType === "bytes" && typeof value === "number") {
+    return <span className="whitespace-nowrap">{formatBytes(value)}</span>;
+  }
+
+  if (valueType === "ms" && typeof value === "number") {
+    return <span className="whitespace-nowrap">{formatSavingsMs(value)}</span>;
+  }
+
+  if (valueType === "timespanMs" && typeof value === "number") {
+    return <span className="whitespace-nowrap">{formatMs(value)}</span>;
+  }
+
+  if (valueType === "numeric" && typeof value === "number") {
+    return <span>{value.toLocaleString()}</span>;
+  }
+
+  if (valueType === "url" && typeof value === "string") {
+    return <UrlCell url={value} />;
+  }
+
+  if (valueType === "thumbnail" && typeof value === "string") {
+    return <span className="text-gray-400 truncate max-w-[200px] inline-block">(image)</span>;
+  }
+
+  if (typeof value === "string") {
+    if (value.startsWith("http://") || value.startsWith("https://")) {
+      return <UrlCell url={value} />;
+    }
+    return <span className="break-all">{value}</span>;
+  }
+
+  return <span>{String(value)}</span>;
+}
+
+function UrlCell({ url }: { url: string }) {
+  let display: string;
+  try {
+    const u = new URL(url);
+    display = u.pathname + u.search;
+    if (display.length > 60) display = display.slice(0, 57) + "...";
+  } catch {
+    display = url.length > 60 ? url.slice(0, 57) + "..." : url;
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-brand-700 hover:text-brand-900 hover:underline break-all max-w-[300px] inline-block truncate"
+      title={url}
+    >
+      {display}
+    </a>
   );
 }
 
@@ -213,13 +373,6 @@ function AuditIcon({ item }: { item: PsiAuditItem }) {
     return <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-300 shrink-0" />;
   }
   const color = item.score !== null && item.score >= 0.5 ? "text-amber-500" : "text-red-500";
-  if (item.group === "opportunity") {
-    return (
-      <span className={`${color} text-xs shrink-0`}>
-        {item.score !== null && item.score >= 0.5 ? "■" : "▲"}
-      </span>
-    );
-  }
   return (
     <span className={`${color} text-xs shrink-0`}>
       {item.score !== null && item.score >= 0.5 ? "■" : "▲"}

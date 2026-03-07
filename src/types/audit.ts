@@ -51,14 +51,29 @@ export interface AnalysisResult {
   quick_wins: QuickWin[];
 }
 
+export interface PsiDetailHeading {
+  key: string;
+  label: string;
+  valueType?: string;   // "url" | "bytes" | "ms" | "text" | "numeric" | "thumbnail" etc.
+}
+
+export interface PsiDetailItem {
+  [key: string]: unknown;
+}
+
 export interface PsiAuditItem {
   id: string;
   title: string;
+  description?: string;
   score: number | null;
   group: "opportunity" | "diagnostic" | "passed";
   displayValue?: string;
   savings_ms?: number;
   savings_bytes?: number;
+  details?: {
+    headings: PsiDetailHeading[];
+    items: PsiDetailItem[];
+  };
 }
 
 export interface PsiResult {

@@ -814,16 +814,32 @@ export class SEOCrawler {
       const item: PsiAuditItem = {
         id: ref.id,
         title: audit.title ?? ref.id,
+        description: audit.description ?? undefined,
         score: audit.score ?? null,
         group,
         displayValue: audit.displayValue ?? undefined,
       };
 
-      // Extract savings from details
+      // Extract savings and detail items from details
       const details = audit.details;
       if (details) {
         if (details.overallSavingsMs) item.savings_ms = Math.round(details.overallSavingsMs);
         if (details.overallSavingsBytes) item.savings_bytes = Math.round(details.overallSavingsBytes);
+
+        // Extract per-resource detail items (headings + items) for expandable view
+        if (details.type === "table" || details.type === "opportunity") {
+          const headings = (details.headings ?? [])
+            .filter((h: { key?: string }) => h.key)
+            .map((h: { key: string; label?: string; valueType?: string }) => ({
+              key: h.key,
+              label: h.label ?? h.key,
+              valueType: h.valueType ?? "text",
+            }));
+          const items = (details.items ?? []).slice(0, 25); // Cap at 25 rows to avoid huge payloads
+          if (headings.length > 0 && items.length > 0) {
+            item.details = { headings, items };
+          }
+        }
       }
 
       auditItems.push(item);
