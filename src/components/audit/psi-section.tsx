@@ -143,8 +143,9 @@ function MetricsGrid({ psi }: { psi: PsiResult }) {
 }
 
 function AuditItemsList({ audits }: { audits: PsiAuditItem[] }) {
-  const opportunities = audits.filter((a) => a.group === "opportunity");
-  const diagnostics = audits.filter((a) => a.group === "diagnostic");
+  const sortByScore = (a: PsiAuditItem, b: PsiAuditItem) => (a.score ?? -1) - (b.score ?? -1);
+  const opportunities = audits.filter((a) => a.group === "opportunity").sort(sortByScore);
+  const diagnostics = audits.filter((a) => a.group === "diagnostic").sort(sortByScore);
   const passed = audits.filter((a) => a.group === "passed");
 
   return (
