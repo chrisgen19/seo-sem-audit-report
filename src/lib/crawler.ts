@@ -690,6 +690,9 @@ export class SEOCrawler {
       strategy: "mobile",
       category: "performance",
     });
+    if (process.env.GOOGLE_PSI_API_KEY) {
+      params.set("key", process.env.GOOGLE_PSI_API_KEY);
+    }
     const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`;
 
     for (let attempt = 1; attempt <= PSI_MAX_RETRIES; attempt++) {
