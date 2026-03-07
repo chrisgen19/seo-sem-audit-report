@@ -194,11 +194,18 @@ export async function POST(req: Request) {
           message: `Sending to ${modelLabel} for analysis (this takes 30–60s)...`,
         });
 
+        const onRetry = (attempt: number, maxRetries: number, delaySec: number) => {
+          send({
+            step: "analyze",
+            message: `Attempt ${attempt}/${maxRetries} failed — retrying in ${delaySec}s...`,
+          });
+        };
+
         let analysis: AnalysisResult;
         if (provider === "gemini") {
-          analysis = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride });
+          analysis = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride, onRetry });
         } else {
-          analysis = await analyzeWithClaude(crawlData, apiKey, { model: modelOverride });
+          analysis = await analyzeWithClaude(crawlData, apiKey, { model: modelOverride, onRetry });
         }
         send({ step: "analyze_done", message: "AI analysis complete." });
 

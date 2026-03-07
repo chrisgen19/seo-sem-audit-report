@@ -2,7 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { CLAUDE_MODEL, GEMINI_MODEL, TECHNICAL_CHECKS, CONTENT_CHECKS, SEM_CHECKS } from "./constants";
 
-export type AnalyzeOptions = { model?: string | null };
+export type AnalyzeOptions = {
+  model?: string | null;
+  onRetry?: (attempt: number, maxRetries: number, delaySec: number) => void;
+};
 import type { AnalysisResult, CrawlData } from "@/types/audit";
 
 function buildChecklistPrompt(): string {
@@ -121,6 +124,40 @@ FINDING AND RECOMMENDATION QUALITY — THIS IS MANDATORY:
 - Every "recommendation" must be specific, step-by-step, and actionable for THIS site
 - Recommendations should explain WHY the change matters (ranking signal, UX, CTR, etc.)`;
 
+const MAX_RETRIES = 5;
+const INITIAL_DELAY_MS = 2000;
+
+function isRetryableError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    if (/503|529|service unavailable|overloaded|high demand|rate limit|429|too many requests|timeout|econnreset|socket hang up/.test(msg)) return true;
+  }
+  return false;
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  onRetry?: (attempt: number, maxRetries: number, delaySec: number) => void
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_RETRIES && isRetryableError(err)) {
+        const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
+        onRetry?.(attempt, MAX_RETRIES, delay / 1000);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
 function parseJsonResponse(text: string): AnalysisResult {
   const cleaned = text
     .trim()
@@ -235,34 +272,40 @@ function buildPrompt(crawlData: CrawlData): string {
 export async function analyzeWithClaude(
   crawlData: CrawlData,
   apiKey: string,
-  { model }: AnalyzeOptions = {}
+  { model, onRetry }: AnalyzeOptions = {}
 ): Promise<AnalysisResult> {
   const client = new Anthropic({ apiKey });
   const prompt = buildPrompt(crawlData);
+  const modelId = model || CLAUDE_MODEL;
 
-  const message = await client.messages.create({
-    model: model || CLAUDE_MODEL,
-    max_tokens: 12000,
-    messages: [{ role: "user", content: prompt }],
-  });
+  return withRetry(async () => {
+    const message = await client.messages.create({
+      model: modelId,
+      max_tokens: 12000,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  const text = message.content
-    .filter((b) => b.type === "text")
-    .map((b) => (b as { type: "text"; text: string }).text)
-    .join("");
+    const text = message.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { type: "text"; text: string }).text)
+      .join("");
 
-  return parseJsonResponse(text);
+    return parseJsonResponse(text);
+  }, `Claude/${modelId}`, onRetry);
 }
 
 export async function analyzeWithGemini(
   crawlData: CrawlData,
   apiKey: string,
-  { model: modelOverride }: AnalyzeOptions = {}
+  { model: modelOverride, onRetry }: AnalyzeOptions = {}
 ): Promise<AnalysisResult> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelOverride || GEMINI_MODEL });
+  const modelId = modelOverride || GEMINI_MODEL;
+  const model = genAI.getGenerativeModel({ model: modelId });
   const prompt = buildPrompt(crawlData);
 
-  const result = await model.generateContent(prompt);
-  return parseJsonResponse(result.response.text());
+  return withRetry(async () => {
+    const result = await model.generateContent(prompt);
+    return parseJsonResponse(result.response.text());
+  }, `Gemini/${modelId}`, onRetry);
 }
