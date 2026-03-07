@@ -3,11 +3,10 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
-import { ScoreBadge } from "@/components/audit/score-card";
 import { ScoreTrendChart, ScoreSummaryRow } from "@/components/audit/score-trend-chart";
-import { formatDateTime } from "@/lib/utils";
-import { Play, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
-import { DeleteAuditButton } from "@/components/audit/delete-audit-button";
+import { AuditHistoryTable } from "@/components/audit/audit-history-table";
+import type { AuditRunRow } from "@/components/audit/audit-history-table";
+import { Play, ChevronLeft, ExternalLink } from "lucide-react";
 
 export default async function PageDetailPage({
   params,
@@ -49,12 +48,32 @@ export default async function PageDetailPage({
   const doneRuns = page.auditRuns.filter((r) => r.status === "done");
   const latestRun = [...doneRuns].reverse()[0];
 
-  // Extract PSI scores for chart and history
+  // For score trend chart
   const doneRunsWithPsi = doneRuns.map((r) => {
     const raw = r.meta?.rawCrawlData as Record<string, unknown> | null;
     const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
     const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
     return { ...r, psiMobile: psiM ?? null, psiDesktop: psiD ?? null };
+  });
+
+  // Serialized for the client-side audit history table
+  const serializedRuns: AuditRunRow[] = [...page.auditRuns].reverse().map((run) => {
+    const raw = run.meta?.rawCrawlData as Record<string, unknown> | null;
+    const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    return {
+      id: run.id,
+      status: run.status,
+      provider: run.provider,
+      overallScore: run.overallScore,
+      technicalScore: run.technicalScore,
+      contentScore: run.contentScore,
+      semScore: run.semScore,
+      createdAt: run.createdAt.toISOString(),
+      errorMessage: run.errorMessage ?? null,
+      psiMobile: psiM ?? null,
+      psiDesktop: psiD ?? null,
+    };
   });
 
   return (
@@ -129,60 +148,11 @@ export default async function PageDetailPage({
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
-            {[...page.auditRuns].reverse().map((run) => {
-              const raw = run.meta?.rawCrawlData as Record<string, unknown> | null;
-              const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
-              const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
-              return (
-              <div key={run.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{formatDateTime(run.createdAt)}</p>
-                  <p className="text-xs text-gray-400 capitalize">{run.provider}</p>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  {run.status === "done" ? (
-                    <>
-                      <div className="grid grid-cols-6 gap-3 text-center">
-                        {[
-                          { label: "Overall", score: run.overallScore },
-                          { label: "Tech", score: run.technicalScore },
-                          { label: "Content", score: run.contentScore },
-                          { label: "SEM", score: run.semScore },
-                          { label: "PSI M", score: psiM ?? null },
-                          { label: "PSI D", score: psiD ?? null },
-                        ].map(({ label, score }) => (
-                          <div key={label} className="text-center">
-                            <p className="text-xs text-gray-400">{label}</p>
-                            {score !== null ? (
-                              <ScoreBadge score={score!} />
-                            ) : (
-                              <span className="text-gray-300 text-xs">—</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <Link
-                        href={`/audits/${run.id}`}
-                        className="flex items-center gap-1 text-brand-700 hover:text-brand-900 text-sm font-medium transition-colors"
-                      >
-                        View <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    </>
-                  ) : run.status === "failed" ? (
-                    <span className="text-sm text-red-500">
-                      Failed{run.errorMessage ? `: ${run.errorMessage.slice(0, 60)}` : ""}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-amber-600 capitalize">{run.status}</span>
-                  )}
-                  <DeleteAuditButton auditId={run.id} />
-                </div>
-              </div>
-              );
-            })}
-          </div>
+          <AuditHistoryTable
+            runs={serializedRuns}
+            projectId={id}
+            pageId={pageId}
+          />
         )}
       </div>
 

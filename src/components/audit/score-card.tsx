@@ -1,4 +1,4 @@
-import { cn, gradeColor, scoreBg } from "@/lib/utils";
+import { cn, gradeColor } from "@/lib/utils";
 
 interface ScoreCardProps {
   label: string;
@@ -60,11 +60,18 @@ interface ScoreBadgeProps {
 }
 
 export function ScoreBadge({ score }: ScoreBadgeProps) {
+  const color =
+    score >= 80
+      ? "bg-green-500 text-white"
+      : score >= 60
+      ? "bg-amber-500 text-white"
+      : "bg-red-500 text-white";
+
   return (
     <span
       className={cn(
         "inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold",
-        scoreBg(score)
+        color
       )}
     >
       {score}
