@@ -8,8 +8,9 @@ import { ChecksTable } from "@/components/audit/checks-table";
 import { QuickWinsTable } from "@/components/audit/quick-wins-table";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, Download } from "lucide-react";
-import type { QuickWin, AdGroup } from "@/types/audit";
+import type { QuickWin, AdGroup, PsiResult } from "@/types/audit";
 import type { AuditCheck } from "@prisma/client";
+import { PsiSection } from "@/components/audit/psi-section";
 
 export default async function AuditResultPage({
   params,
@@ -65,6 +66,12 @@ export default async function AuditResultPage({
   const semStrengths = (meta?.semStrengths ?? []) as unknown as string[];
   const semIssues = (meta?.semIssues ?? []) as unknown as string[];
   const campaignRecs = (meta?.campaignRecs ?? []) as unknown as string[];
+
+  // Extract PSI data from raw crawl data
+  const rawCrawl = meta?.rawCrawlData as Record<string, unknown> | null;
+  const psiMobile = (rawCrawl?.psi ?? null) as PsiResult | null;
+  const psiDesktop = (rawCrawl?.psi_desktop ?? null) as PsiResult | null;
+  const psiError = (rawCrawl?.psi_error ?? null) as string | null;
 
   const projectId = auditRun.page.project.id;
   const pageId = auditRun.page.id;
@@ -153,6 +160,13 @@ export default async function AuditResultPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* PageSpeed Insights */}
+      {(psiMobile || psiDesktop || psiError) && (
+        <Section title="PageSpeed Insights (Core Web Vitals)">
+          <PsiSection mobile={psiMobile} desktop={psiDesktop} psiError={psiError} />
+        </Section>
       )}
 
       {/* Technical SEO */}

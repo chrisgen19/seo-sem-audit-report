@@ -264,14 +264,21 @@ function buildPrompt(crawlData: CrawlData): string {
     external_style_count: crawlData.external_style_count,
 
     // PageSpeed Insights (Core Web Vitals)
-    psi: crawlData.psi ? {
+    psi_mobile: crawlData.psi ? {
       performance_score: crawlData.psi.performance_score,
       lcp_ms: crawlData.psi.lcp,
       fcp_ms: crawlData.psi.fcp,
       tbt_ms: crawlData.psi.tbt,
       cls: crawlData.psi.cls,
       ttfb_ms: crawlData.psi.ttfb,
-      strategy: crawlData.psi.strategy,
+    } : undefined,
+    psi_desktop: crawlData.psi_desktop ? {
+      performance_score: crawlData.psi_desktop.performance_score,
+      lcp_ms: crawlData.psi_desktop.lcp,
+      fcp_ms: crawlData.psi_desktop.fcp,
+      tbt_ms: crawlData.psi_desktop.tbt,
+      cls: crawlData.psi_desktop.cls,
+      ttfb_ms: crawlData.psi_desktop.ttfb,
     } : undefined,
     psi_error: crawlData.psi_error,
   };
