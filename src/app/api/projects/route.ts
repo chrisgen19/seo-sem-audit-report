@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext, isAdmin } from "@/lib/org";
 import { db } from "@/lib/db";
 import { normalizeUrl } from "@/lib/utils";
 import { z } from "zod";
@@ -9,11 +9,11 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const projects = await db.project.findMany({
-    where: { userId: session.user.id },
+    where: { organizationId: ctx.organizationId },
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { pages: true } },
@@ -44,8 +44,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!isAdmin(ctx)) {
+    return Response.json({ error: "Only admins can create projects." }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -55,7 +59,7 @@ export async function POST(req: Request) {
 
   const project = await db.project.create({
     data: {
-      userId: session.user.id,
+      organizationId: ctx.organizationId,
       name: parsed.data.name,
       domain: normalizeUrl(parsed.data.domain),
     },

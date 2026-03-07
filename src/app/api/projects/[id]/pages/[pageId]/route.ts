@@ -1,17 +1,21 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string; pageId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, pageId } = await params;
 
   const page = await db.page.findFirst({
-    where: { id: pageId, projectId: id, project: { userId: session.user.id } },
+    where: {
+      id: pageId,
+      projectId: id,
+      project: { organizationId: ctx.organizationId },
+    },
     include: {
       project: { select: { id: true, name: true, domain: true } },
       auditRuns: {
@@ -44,13 +48,17 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string; pageId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, pageId } = await params;
 
   const page = await db.page.findFirst({
-    where: { id: pageId, projectId: id, project: { userId: session.user.id } },
+    where: {
+      id: pageId,
+      projectId: id,
+      project: { organizationId: ctx.organizationId },
+    },
   });
   if (!page) return Response.json({ error: "Not found" }, { status: 404 });
 

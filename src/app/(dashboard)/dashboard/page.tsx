@@ -10,7 +10,7 @@ export default async function DashboardPage() {
   const session = await auth();
 
   const projects = await db.project.findMany({
-    where: { userId: session!.user.id },
+    where: { organizationId: session!.user.organizationId! },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { pages: true } },

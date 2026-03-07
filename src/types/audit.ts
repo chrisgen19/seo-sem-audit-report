@@ -186,6 +186,23 @@ export interface CrawlData {
   // hreflang tags
   hreflang_tags?: Array<{ lang: string; href: string }>;
 
+  // PageSpeed Insights (Core Web Vitals)
+  psi?: {
+    performance_score: number;       // 0–100
+    fcp: number;                     // First Contentful Paint (ms)
+    lcp: number;                     // Largest Contentful Paint (ms)
+    cls: number;                     // Cumulative Layout Shift
+    tbt: number;                     // Total Blocking Time (ms)
+    si: number;                      // Speed Index (ms)
+    ttfb: number;                    // Time to First Byte (ms)
+    fcp_rating: string;              // FAST / AVERAGE / SLOW
+    lcp_rating: string;
+    cls_rating: string;
+    tbt_rating: string;
+    strategy: string;                // mobile or desktop
+  };
+  psi_error?: string;
+
   // Conversion/analytics tracking
   conversion_tracking?: {
     has_ga4: boolean;

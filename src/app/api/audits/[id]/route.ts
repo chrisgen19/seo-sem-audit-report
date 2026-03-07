@@ -1,19 +1,19 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
   const auditRun = await db.auditRun.findFirst({
     where: {
       id,
-      page: { project: { userId: session.user.id } },
+      page: { project: { organizationId: ctx.organizationId } },
     },
     include: {
       page: {
@@ -37,13 +37,13 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
   const auditRun = await db.auditRun.findFirst({
-    where: { id, page: { project: { userId: session.user.id } } },
+    where: { id, page: { project: { organizationId: ctx.organizationId } } },
   });
   if (!auditRun) return Response.json({ error: "Not found" }, { status: 404 });
 

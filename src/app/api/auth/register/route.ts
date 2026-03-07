@@ -24,14 +24,66 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await db.user.create({
-      data: { name, email, passwordHash },
-      select: { id: true, email: true, name: true },
+
+    const { user, isFirstUser } = await db.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: { name, email, passwordHash },
+        select: { id: true, email: true, name: true },
+      });
+
+      // Check inside the transaction to avoid TOCTOU race on first-user detection
+      const orgCount = await tx.organization.count();
+      const firstUser = orgCount === 0;
+
+      if (firstUser) {
+        // Create the default organization and make this user ADMIN
+        const org = await tx.organization.upsert({
+          where: { slug: "default" },
+          update: {},
+          create: { name: "My Organization", slug: "default" },
+        });
+
+        await tx.organizationMember.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "ADMIN",
+            status: "ACTIVE",
+          },
+        });
+      } else {
+        // Join the existing organization with PENDING status (admin must approve)
+        const org = await tx.organization.findFirst({
+          orderBy: { createdAt: "asc" },
+        });
+
+        if (!org) throw new Error("No organization found. Contact your administrator.");
+
+        await tx.organizationMember.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "MEMBER",
+            status: "PENDING",
+          },
+        });
+      }
+
+      return { user: newUser, isFirstUser: firstUser };
     });
 
-    return Response.json(user, { status: 201 });
+    return Response.json(
+      {
+        ...user,
+        pending: !isFirstUser,
+        message: isFirstUser
+          ? "Account created. You are the organization admin."
+          : "Account created. An admin must approve your access before you can log in.",
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("[register]", error);
-    return Response.json({ error: "Registration failed. Please try again." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+    return Response.json({ error: message }, { status: 500 });
   }
 }

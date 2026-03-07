@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { decrypt } from "@/lib/encrypt";
@@ -96,8 +96,8 @@ async function saveAuditToDb(
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const ctx = await getOrgContext();
+  if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -109,17 +109,17 @@ export async function POST(req: Request) {
 
   const { pageId, provider } = parsed.data;
 
-  // Verify ownership via Page → Project → User
+  // Verify access via Page → Project → Organization
   const page = await db.page.findFirst({
-    where: { id: pageId, project: { userId: session.user.id } },
+    where: { id: pageId, project: { organizationId: ctx.organizationId } },
     include: { project: { select: { id: true, name: true } } },
   });
   if (!page) {
     return Response.json({ error: "Page not found" }, { status: 404 });
   }
 
-  // Get and decrypt API key + model preference
-  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  // Get and decrypt the current user's API key + model preference
+  const user = await db.user.findUnique({ where: { id: ctx.userId } });
   const rawKey = provider === "gemini" ? user?.geminiApiKey : user?.claudeApiKey;
   const modelOverride = provider === "gemini" ? user?.geminiModel : user?.claudeModel;
   if (!rawKey) {
@@ -188,11 +188,18 @@ export async function POST(req: Request) {
           message: `Sending to ${modelLabel} for analysis (this takes 30–60s)...`,
         });
 
+        const onRetry = (attempt: number, maxRetries: number, delaySec: number) => {
+          send({
+            step: "analyze",
+            message: `Attempt ${attempt}/${maxRetries} failed — retrying in ${delaySec}s...`,
+          });
+        };
+
         let analysis: AnalysisResult;
         if (provider === "gemini") {
-          analysis = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride });
+          analysis = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride, onRetry });
         } else {
-          analysis = await analyzeWithClaude(crawlData, apiKey, { model: modelOverride });
+          analysis = await analyzeWithClaude(crawlData, apiKey, { model: modelOverride, onRetry });
         }
         send({ step: "analyze_done", message: "AI analysis complete." });
 

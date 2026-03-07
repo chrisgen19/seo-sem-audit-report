@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, FolderOpen, Settings, LogOut, BarChart2 } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Settings, LogOut, BarChart2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -14,6 +15,8 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
 
   return (
     <aside className="w-60 shrink-0 bg-slate-900 flex flex-col min-h-screen">
@@ -51,6 +54,22 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Admin-only: Team Management */}
+        {isAdmin && (
+          <Link
+            href="/settings/team"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname.startsWith("/settings/team")
+                ? "bg-brand-900 text-white"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            )}
+          >
+            <Users className="h-4 w-4 shrink-0" />
+            Team
+          </Link>
+        )}
       </nav>
 
       {/* Logout */}
