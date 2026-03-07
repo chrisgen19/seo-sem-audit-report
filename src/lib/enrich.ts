@@ -15,6 +15,25 @@ export function enrichFindings(
 
   // ── Technical SEO ──────────────────────────────────────────────
 
+  appendTo(techMap, "Page Speed", () => {
+    const psi = crawl.psi;
+    if (!psi) {
+      if (crawl.psi_error) return `\n\nPageSpeed Insights unavailable: ${crawl.psi_error}`;
+      if (crawl.response_time_ms !== undefined) return `\n\nServer response time (TTFB): ${crawl.response_time_ms}ms\n(PageSpeed Insights data not available)`;
+      return null;
+    }
+    const lines: string[] = [];
+    lines.push(`Performance Score: ${psi.performance_score}/100 (${psi.strategy})`);
+    lines.push(`LCP (Largest Contentful Paint): ${(psi.lcp / 1000).toFixed(1)}s — ${psi.lcp_rating}`);
+    lines.push(`FCP (First Contentful Paint): ${(psi.fcp / 1000).toFixed(1)}s — ${psi.fcp_rating}`);
+    lines.push(`TBT (Total Blocking Time): ${psi.tbt}ms — ${psi.tbt_rating}`);
+    lines.push(`CLS (Cumulative Layout Shift): ${psi.cls} — ${psi.cls_rating}`);
+    lines.push(`Speed Index: ${(psi.si / 1000).toFixed(1)}s`);
+    lines.push(`TTFB: ${psi.ttfb}ms`);
+    if (crawl.response_time_ms !== undefined) lines.push(`Server response time (crawl): ${crawl.response_time_ms}ms`);
+    return formatList("Core Web Vitals (Google PageSpeed Insights)", lines);
+  });
+
   appendTo(techMap, "HTTPS / SSL", () => {
     const lines: string[] = [];
     lines.push(`Protocol: ${crawl.is_https ? "HTTPS" : "HTTP"}`);
@@ -321,8 +340,19 @@ export function enrichFindings(
   });
 
   appendTo(semMap, "Page Load Speed", () => {
-    if (crawl.response_time_ms === undefined) return null;
-    return `\n\nServer response time: ${crawl.response_time_ms}ms`;
+    const psi = crawl.psi;
+    if (!psi) {
+      if (crawl.response_time_ms !== undefined) return `\n\nServer response time: ${crawl.response_time_ms}ms\n(PageSpeed Insights data not available)`;
+      return null;
+    }
+    const lines: string[] = [];
+    lines.push(`Performance Score: ${psi.performance_score}/100 (${psi.strategy})`);
+    lines.push(`LCP: ${(psi.lcp / 1000).toFixed(1)}s — ${psi.lcp_rating}`);
+    lines.push(`FCP: ${(psi.fcp / 1000).toFixed(1)}s — ${psi.fcp_rating}`);
+    lines.push(`TBT: ${psi.tbt}ms — ${psi.tbt_rating}`);
+    lines.push(`CLS: ${psi.cls} — ${psi.cls_rating}`);
+    if (crawl.response_time_ms !== undefined) lines.push(`Server response time: ${crawl.response_time_ms}ms`);
+    return formatList("Page speed metrics (Google PSI)", lines);
   });
 
   appendTo(semMap, "Mobile UX", () => {

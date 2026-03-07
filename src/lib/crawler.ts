@@ -61,6 +61,7 @@ export class SEOCrawler {
     this.checkFavicon();
     this.extractHreflang();
     this.detectConversionTracking();
+    await this.fetchPageSpeedInsights();
     return this.data;
   }
 
@@ -676,5 +677,68 @@ export class SEOCrawler {
     };
 
     this.onProgress(detected.length ? `Tracking: ${detected.join(", ")}` : "No conversion tracking detected");
+  }
+
+  private async fetchPageSpeedInsights() {
+    this.onProgress("Running PageSpeed Insights (this takes 15–30s)...");
+    try {
+      const params = new URLSearchParams({
+        url: this.url,
+        strategy: "mobile",
+        category: "performance",
+      });
+      const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`;
+      const resp = await fetchWithTimeout(apiUrl, 60_000);
+      if (!resp.ok) {
+        this.data.psi_error = `PSI API returned ${resp.status}`;
+        this.onProgress(`PageSpeed Insights: API error (${resp.status})`);
+        return;
+      }
+      const json = await resp.json();
+      const lhr = json.lighthouseResult;
+      if (!lhr) {
+        this.data.psi_error = "No Lighthouse result in PSI response";
+        this.onProgress("PageSpeed Insights: No Lighthouse data");
+        return;
+      }
+
+      const audits = lhr.audits ?? {};
+      const perfScore = Math.round((lhr.categories?.performance?.score ?? 0) * 100);
+      const fcp = audits["first-contentful-paint"]?.numericValue ?? 0;
+      const lcp = audits["largest-contentful-paint"]?.numericValue ?? 0;
+      const cls = audits["cumulative-layout-shift"]?.numericValue ?? 0;
+      const tbt = audits["total-blocking-time"]?.numericValue ?? 0;
+      const si = audits["speed-index"]?.numericValue ?? 0;
+      const ttfb = audits["server-response-time"]?.numericValue ?? 0;
+
+      const ratingOf = (audit: { score?: number }): string => {
+        const s = audit?.score ?? 0;
+        if (s >= 0.9) return "FAST";
+        if (s >= 0.5) return "AVERAGE";
+        return "SLOW";
+      };
+
+      this.data.psi = {
+        performance_score: perfScore,
+        fcp: Math.round(fcp),
+        lcp: Math.round(lcp),
+        cls: Math.round(cls * 1000) / 1000,
+        tbt: Math.round(tbt),
+        si: Math.round(si),
+        ttfb: Math.round(ttfb),
+        fcp_rating: ratingOf(audits["first-contentful-paint"] ?? {}),
+        lcp_rating: ratingOf(audits["largest-contentful-paint"] ?? {}),
+        cls_rating: ratingOf(audits["cumulative-layout-shift"] ?? {}),
+        tbt_rating: ratingOf(audits["total-blocking-time"] ?? {}),
+        strategy: "mobile",
+      };
+
+      this.onProgress(
+        `PageSpeed: ${perfScore}/100 | LCP: ${(lcp / 1000).toFixed(1)}s | CLS: ${cls.toFixed(3)} | TBT: ${Math.round(tbt)}ms`
+      );
+    } catch (err) {
+      this.data.psi_error = String(err);
+      this.onProgress(`PageSpeed Insights: ${err instanceof Error ? err.message : "failed"}`);
+    }
   }
 }

@@ -262,6 +262,18 @@ function buildPrompt(crawlData: CrawlData): string {
     tech_detected: crawlData.tech_detected,
     external_script_count: crawlData.external_script_count,
     external_style_count: crawlData.external_style_count,
+
+    // PageSpeed Insights (Core Web Vitals)
+    psi: crawlData.psi ? {
+      performance_score: crawlData.psi.performance_score,
+      lcp_ms: crawlData.psi.lcp,
+      fcp_ms: crawlData.psi.fcp,
+      tbt_ms: crawlData.psi.tbt,
+      cls: crawlData.psi.cls,
+      ttfb_ms: crawlData.psi.ttfb,
+      strategy: crawlData.psi.strategy,
+    } : undefined,
+    psi_error: crawlData.psi_error,
   };
 
   return ANALYSIS_PROMPT
