@@ -65,7 +65,13 @@ export function enrichFindings(
   appendTo(techMap, "Structured Data", () => {
     const types = crawl.schema_types ?? [];
     if (!types.length) return "\n\nNo JSON-LD schema types detected on the page.";
-    return formatList("Schema types detected", types);
+    const known = types.filter((t) => t !== "Unknown");
+    const unknownCount = types.length - known.length;
+    const lines = [
+      ...known,
+      ...(unknownCount > 0 ? [`Unknown (${unknownCount}) — unrecognized @type value, won't generate rich results`] : []),
+    ];
+    return formatList("Schema types detected", lines);
   });
 
   appendTo(techMap, "XML Sitemap", () => {
