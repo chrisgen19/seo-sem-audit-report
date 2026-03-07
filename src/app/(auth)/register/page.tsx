@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { User, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,67 +37,104 @@ export default function RegisterPage() {
 
   return (
     <>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Create account</h2>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Create your account
+        </h2>
+        <p className="text-slate-500 text-sm mt-1.5">
+          Start auditing your sites in minutes
+        </p>
+      </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+        <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-            placeholder="Your name"
-          />
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Full name
+          </label>
+          <div className="relative">
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all"
+              placeholder="John Smith"
+            />
+          </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-            placeholder="you@example.com"
-          />
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Work email
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all"
+              placeholder="you@company.com"
+            />
+          </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-            placeholder="Min. 8 characters"
-          />
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Password
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all"
+              placeholder="Min. 8 characters"
+            />
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 bg-brand-900 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 disabled:hover:bg-slate-900 text-white font-semibold rounded-xl transition-all text-sm group"
         >
-          {loading ? "Creating account..." : "Create account"}
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            <>
+              Create account
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </>
+          )}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
-        Already have an account?{" "}
-        <Link href="/login" className="text-brand-700 font-medium hover:underline">
-          Sign in
-        </Link>
-      </p>
+      <div className="mt-8 pt-6 border-t border-slate-200">
+        <p className="text-center text-sm text-slate-500">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-brand-700 font-semibold hover:text-brand-900 transition-colors"
+          >
+            Sign in
+          </Link>
+        </p>
+      </div>
     </>
   );
 }

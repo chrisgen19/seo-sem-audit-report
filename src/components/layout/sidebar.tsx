@@ -19,7 +19,7 @@ export function Sidebar() {
   const isAdmin = session?.user?.role === "ADMIN";
 
   return (
-    <aside className="w-60 shrink-0 bg-slate-900 flex flex-col min-h-screen">
+    <aside className="w-60 shrink-0 bg-slate-900 flex flex-col h-screen sticky top-0">
       {/* Logo */}
       <div className="px-5 py-6 border-b border-slate-700">
         <div className="flex items-center gap-2">
@@ -32,11 +32,13 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/dashboard"
               ? pathname === "/dashboard"
+              : href === "/settings"
+              ? pathname === "/settings"
               : pathname.startsWith(href);
           return (
             <Link
