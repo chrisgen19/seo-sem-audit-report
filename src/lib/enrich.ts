@@ -15,6 +15,62 @@ export function enrichFindings(
 
   // ── Technical SEO ──────────────────────────────────────────────
 
+  appendTo(techMap, "HTTPS / SSL", () => {
+    const lines: string[] = [];
+    lines.push(`Protocol: ${crawl.is_https ? "HTTPS" : "HTTP"}`);
+    if (crawl.final_url) lines.push(`URL: ${crawl.final_url}`);
+    if (crawl.has_mixed_content) lines.push(`Mixed content: Yes (${crawl.mixed_content?.length ?? 0} resource(s))`);
+    else lines.push("Mixed content: None detected");
+    return formatList("HTTPS status", lines);
+  });
+
+  appendTo(techMap, "Indexability", () => {
+    const lines: string[] = [];
+    if (crawl.status_code !== undefined) lines.push(`HTTP status: ${crawl.status_code}`);
+    if (crawl.meta_robots) lines.push(`meta robots: "${crawl.meta_robots}"`);
+    else lines.push("meta robots: not set (defaults to index, follow)");
+    return formatList("Indexability details", lines);
+  });
+
+  appendTo(techMap, "Canonical Tag", () => {
+    if (crawl.canonical_url) return `\n\nCanonical URL: ${crawl.canonical_url}`;
+    return "\n\nCanonical tag: NOT SET";
+  });
+
+  appendTo(techMap, "Internal Linking", () => {
+    const links = crawl.internal_links ?? [];
+    const total = crawl.internal_link_count ?? links.length;
+    if (!total) return "\n\nNo internal links found on the page.";
+    return formatList(
+      `Internal links found (${total})`,
+      links.slice(0, 15).map((l) => `${l.href}${l.text ? ` ("${truncate(l.text, 40)}")` : ""}`)
+    );
+  });
+
+  appendTo(techMap, "URL Structure", () => {
+    if (!crawl.final_url) return null;
+    try {
+      const url = new URL(crawl.final_url);
+      const lines: string[] = [];
+      lines.push(`Path: ${url.pathname}`);
+      if (url.search) lines.push(`Query string: ${url.search}`);
+      if (url.hash) lines.push(`Fragment: ${url.hash}`);
+      const hasUppercase = /[A-Z]/.test(url.pathname);
+      const hasUnderscore = /_/.test(url.pathname);
+      if (hasUppercase) lines.push("⚠ Path contains uppercase characters");
+      if (hasUnderscore) lines.push("⚠ Path contains underscores (prefer hyphens)");
+      return formatList("URL analysis", lines);
+    } catch {
+      return null;
+    }
+  });
+
+  appendTo(techMap, "Duplicate Content", () => {
+    const dupes = crawl.duplicate_paragraphs ?? [];
+    if (!dupes.length) return null;
+    return formatList(`Duplicate paragraphs detected (${dupes.length})`, dupes);
+  });
+
   appendTo(techMap, "Lazy Loading", () => {
     const imgs = (crawl.images ?? []).filter((i) => !i.has_lazy_loading);
     if (!imgs.length) return null;
@@ -144,12 +200,6 @@ export function enrichFindings(
     return `\n\nhtml lang attribute: ${crawl.html_lang ? `"${crawl.html_lang}"` : "NOT SET"}`;
   });
 
-  appendTo(contentMap, "Duplicate Content", () => {
-    const dupes = crawl.duplicate_paragraphs ?? [];
-    if (!dupes.length) return null;
-    return formatList(`Duplicate paragraphs detected (${dupes.length})`, dupes);
-  });
-
   appendTo(contentMap, "Content Depth", () => {
     const lines: string[] = [];
     if (crawl.word_count !== undefined) lines.push(`Word count: ${crawl.word_count}`);
@@ -158,7 +208,6 @@ export function enrichFindings(
     const h2c = crawl.headings?.h2?.length ?? 0;
     const h3c = crawl.headings?.h3?.length ?? 0;
     lines.push(`Headings: ${h1c} H1, ${h2c} H2, ${h3c} H3`);
-    if (!lines.length) return null;
     return formatList("Content metrics", lines);
   });
 
@@ -178,6 +227,19 @@ export function enrichFindings(
       `FAQ elements found (${faqs.length})`,
       faqs.map((f) => f.question)
     );
+  });
+
+  appendTo(contentMap, "CTA Placement", () => {
+    const ctas = crawl.cta_elements ?? [];
+    if (!ctas.length) return "\n\nNo CTA elements found on the page.";
+    const aboveFold = ctas.filter((c) => c.position_index < 5);
+    const lines: string[] = [];
+    lines.push(`Total CTAs: ${ctas.length}`);
+    lines.push(`Above the fold (early DOM): ${aboveFold.length}`);
+    if (aboveFold.length) {
+      lines.push(...aboveFold.map((c) => `<${c.tag}> "${c.text}"`));
+    }
+    return formatList("CTA placement analysis", lines);
   });
 
   // ── SEM Readiness ──────────────────────────────────────────────

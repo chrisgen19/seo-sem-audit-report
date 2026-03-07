@@ -161,13 +161,9 @@ function bulletItem(text: string, num?: number): Paragraph {
  * Strips bullet-point item lists that follow — those are for the web UI only.
  */
 function summarizeFinding(finding: string, maxLen = 250): string {
-  // Take text before the first bullet list or "Affected items:" / "Images without" etc.
-  const cutPatterns = /\n\n(?:Affected|Images|Missing|Headers|Items|Links|Tags|Scripts|Elements|Headings|Checks)[^\n]*:\s*\n/i;
-  let summary = finding.split(cutPatterns)[0].trim();
-
-  // Also cut at double-newline followed by "- " bullet
-  const bulletStart = summary.indexOf("\n\n- ");
-  if (bulletStart > 0) summary = summary.slice(0, bulletStart).trim();
+  // Enrichment data always starts with \n\n — take only the AI summary (first paragraph)
+  const doubleNewline = finding.indexOf("\n\n");
+  let summary = doubleNewline > 0 ? finding.slice(0, doubleNewline).trim() : finding.trim();
 
   // Also cut at single newline + bullet if it looks like a list
   const singleBullet = summary.indexOf("\n- ");
