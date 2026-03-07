@@ -28,7 +28,13 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
   const bottomRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
+  const startedRef = useRef(false);
+
   useEffect(() => {
+    // Prevent duplicate requests from React StrictMode double-effect
+    if (startedRef.current) return;
+    startedRef.current = true;
+
     let cancelled = false;
     const abortController = new AbortController();
 
