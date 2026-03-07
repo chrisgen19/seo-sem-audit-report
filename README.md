@@ -1,16 +1,41 @@
-# SEO Audit App — Next.js Web App
+# SEO/SEM Audit Report
 
-AI-powered SEO & SEM audit tool with user authentication, PostgreSQL history tracking, and score progress comparison.
+AI-powered SEO & SEM audit tool. Crawl any URL, run it through Claude or Gemini, and get a scored audit report with actionable recommendations, Core Web Vitals, score history, and DOCX export.
+
+---
+
+## Features
+
+- **AI-powered audit** — Claude or Gemini analyzes crawled page data and returns structured findings
+- **Deterministic scoring** — fixed rubric (Technical 40% / Content 35% / SEM 25%) ensures scores are always comparable across runs and providers
+- **PageSpeed Insights** — mobile + desktop Core Web Vitals (FCP, LCP, TBT, CLS, Speed Index) with detailed audit items
+- **Score trends** — area chart + summary cards tracking score history across multiple runs
+- **Audit history** — filterable, sortable table with multi-select bulk delete
+- **DOCX export** — full report export including PSI data and audit checks
+- **Project & page management** — organize audits by project and track multiple pages per site
+- **Dashboard** — recent audit activity across all projects
+- **Team management** — admin can invite members, set roles (Admin/Member), edit, and remove
+- **API key encryption** — Claude and Gemini keys stored with AES-256-GCM encryption
+
+---
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **Auth:** NextAuth v5 (credentials, JWT)
-- **Database:** PostgreSQL + Prisma ORM
-- **Crawler:** TypeScript port using Cheerio (replaces Python requests/BeautifulSoup)
-- **AI Providers:** Anthropic Claude + Google Gemini
-- **Styling:** Tailwind CSS
-- **Charts:** Recharts
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict mode) |
+| Styling | Tailwind CSS |
+| Auth | NextAuth.js v5 beta (credentials + JWT) |
+| Database | PostgreSQL + Prisma ORM |
+| Crawler | Cheerio (HTML parsing + PSI API) |
+| AI Providers | Anthropic Claude SDK, Google Generative AI |
+| Charts | Recharts |
+| Export | docx |
+| Validation | Zod |
+| Icons | Lucide React |
+
+---
 
 ## Setup
 
@@ -31,28 +56,27 @@ Edit `.env`:
 ```env
 DATABASE_URL="postgres://myuser:mypassword@localhost:5432/seoaudit"
 
-AUTH_SECRET="$(openssl rand -hex 32)"
+AUTH_SECRET="your-secret-here"   # openssl rand -hex 32
 AUTH_URL="http://localhost:3000"
 
-# 32-byte hex key for encrypting stored API keys
-ENCRYPTION_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+# 32-byte hex key for AES-256-GCM encryption of stored API keys
+ENCRYPTION_KEY="your-64-char-hex-string"   # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 3. Set up the database
+### 3. Start the database
 
 ```bash
-pnpm db:push       # push schema to DB (no migration history)
-# or
-pnpm db:migrate    # create a migration file
+docker compose up -d   # PostgreSQL on port 5432
 ```
 
-### 4. Generate Prisma client
+### 4. Push schema and generate Prisma client
 
 ```bash
+pnpm db:push
 pnpm db:generate
 ```
 
-### 5. Run dev server
+### 5. Run the dev server
 
 ```bash
 pnpm dev
@@ -60,60 +84,123 @@ pnpm dev
 
 Visit `http://localhost:3000` — you'll be redirected to `/login`.
 
+---
+
 ## Usage
 
-1. **Register** an account at `/register`
-2. **Add API keys** in Settings (Claude and/or Gemini)
-3. **Create a project** — name + URL of the website to audit
-4. **Run an audit** — pick provider, click Start, watch live progress
-5. **View results** — scores, checks, quick wins, ad groups
-6. **Track progress** — run multiple audits to see score trend charts
+1. **Register** at `/register` — the first account becomes the organization Admin
+2. **Add API keys** in Settings → paste your Gemini (or Claude) API key
+3. **Create a project** at `/projects` — name + root domain
+4. **Add pages** inside the project — each page has its own audit history
+5. **Run an audit** — real-time progress via SSE streaming
+6. **View results** — score cards, PSI Core Web Vitals, checks table, quick wins, ad groups
+7. **Track trends** — run multiple audits to see the score trend chart
+8. **Export** — download a DOCX report from any audit result page
+
+---
 
 ## Scoring
 
-Scores are computed **deterministically from a fixed rubric** — AI assigns PASS/WARN/FAIL per check, Python weights compute the final score. This means scores are always comparable across runs and providers.
+Scores are computed **deterministically from a fixed rubric** — AI assigns PASS / WARN / FAIL per check, and weighted math computes the final score. This makes scores consistent across runs and providers.
 
-| Category  | Weight |
-|-----------|--------|
-| Technical | 40%    |
-| Content   | 35%    |
-| SEM       | 25%    |
+| Category | Weight | Checks |
+|---|---|---|
+| Technical SEO | 40% | 16 checks |
+| Content SEO | 35% | 14 checks |
+| SEM Readiness | 25% | 11 checks |
 
-## API Routes
+**Grade scale:** A (90+) · A- (85+) · B+ (80+) · B (70+) · C (60+) · D (50+) · F (<50)
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/auth/register` | Register new user |
-| GET/POST | `/api/auth/[...nextauth]` | NextAuth handlers |
-| GET/POST | `/api/projects` | List / create projects |
-| GET/DELETE | `/api/projects/[id]` | Get / delete project |
-| POST | `/api/audits/run` | Start streaming audit (SSE) |
-| GET | `/api/audits/[id]` | Get audit results |
-| GET/PATCH | `/api/settings` | User settings + API keys |
+**Score badges:** green ≥80 · amber 60–79 · red <60
+
+---
 
 ## Database Schema
 
 ```
-User → Project → AuditRun → AuditCheck (many)
-                          → AuditMeta  (one)
+Organization
+  └── OrganizationMember (userId, role: ADMIN|MEMBER, status: PENDING|ACTIVE)
+  └── Project
+        └── Page
+              └── AuditRun
+                    ├── AuditCheck[]   (section, name, status, finding, recommendation)
+                    └── AuditMeta      (scores, summary, PSI data, quick wins, ad groups)
+
+User
+  ├── memberships → OrganizationMember[]
+  └── encrypted API keys (claudeApiKey, geminiApiKey)
 ```
 
-## Future Features
+---
 
-- [ ] DOCX report export (port from Python using `docx` npm package)
-- [ ] Side-by-side run comparison view (`/audits/[id]/compare`)
-- [ ] Email notifications when audit completes
-- [ ] Scheduled/recurring audits (cron)
-- [ ] Multi-page crawl (not just homepage)
-- [ ] PDF export
-- [ ] Shareable public report links
-- [ ] Team / organisation support
+## API Routes
+
+| Method | Route | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Register new user |
+| GET/POST | `/api/auth/[...nextauth]` | NextAuth handlers |
+| GET/POST | `/api/projects` | List / create projects |
+| GET/DELETE | `/api/projects/[id]` | Get / delete project |
+| GET/POST | `/api/projects/[id]/pages` | List / add pages |
+| GET/DELETE | `/api/projects/[id]/pages/[pageId]` | Get / delete page |
+| POST | `/api/audits/run` | Start streaming audit (SSE) |
+| GET/DELETE | `/api/audits/[id]` | Get / delete audit run |
+| GET | `/api/audits/[id]/export` | Download DOCX report |
+| DELETE | `/api/audits/bulk-delete` | Bulk delete audit runs |
+| GET/PATCH | `/api/settings` | User settings + API keys |
+| GET/POST/PATCH | `/api/admin/members` | Team member management (admin only) |
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── (auth)/              # Login + Register
+│   ├── (dashboard)/
+│   │   ├── dashboard/       # Recent audits overview
+│   │   ├── projects/        # Projects list + new project form
+│   │   ├── projects/[id]/   # Project detail + pages list
+│   │   ├── projects/[id]/pages/[pageId]/       # Page detail + audit history
+│   │   ├── projects/[id]/pages/[pageId]/run/   # Audit runner
+│   │   ├── audits/[id]/     # Audit result detail
+│   │   └── settings/        # API keys, model preferences, team management
+│   └── api/                 # All API routes
+├── components/
+│   ├── audit/               # ScoreCard, ChecksTable, PsiSection, AuditHistoryTable, ScoreTrendChart
+│   └── layout/              # Sidebar, Header
+└── lib/
+    ├── analyzer.ts          # AI prompt builders (Claude + Gemini)
+    ├── crawler.ts           # SEOCrawler + PageSpeed Insights fetcher
+    ├── constants.ts         # Scoring rubric (check names + weights)
+    ├── scoring.ts           # Deterministic score calculator
+    ├── report.ts            # DOCX report generator
+    └── encrypt.ts           # AES-256-GCM API key encryption
+```
+
+---
+
+## Development
+
+```bash
+pnpm dev          # start dev server
+pnpm build        # production build
+pnpm lint         # ESLint
+pnpm type-check   # TypeScript check
+pnpm db:push      # push schema changes
+pnpm db:migrate   # create migration
+pnpm db:studio    # open Prisma Studio
+pnpm db:seed      # seed database
+```
+
+---
 
 ## Deployment
 
 ### Coolify / Docker
 
-The app runs on Node 20+. Set all env vars in Coolify dashboard.
+Set all env vars in the Coolify dashboard, then:
 
 ```bash
 pnpm build
@@ -123,12 +210,16 @@ pnpm start
 ### Vercel
 
 Push to GitHub and connect to Vercel. Set env vars in project settings.
-Note: Streaming audit route requires `maxDuration = 300` — needs Vercel Pro plan.
-On Hobby plan, use a separate background worker instead.
 
-## Development Notes
+> **Note:** The streaming audit route (`/api/audits/run`) uses SSE and requires `maxDuration = 300`. This needs a Vercel Pro plan. On Hobby, use a separate background worker.
 
-- API keys are encrypted with AES-256-GCM before being stored in the DB
-- The crawler rewrites the Python `SEOCrawler` class in TypeScript using `cheerio`
-- SSE streaming (Server-Sent Events) provides real-time audit progress
-- The fixed scoring rubric in `src/lib/constants.ts` must stay in sync with the weights if you update checks
+---
+
+## Roadmap
+
+- [ ] Side-by-side audit comparison view
+- [ ] Scheduled / recurring audits
+- [ ] Email notifications on audit completion
+- [ ] PDF export
+- [ ] Shareable public report links
+- [ ] Multi-page bulk audit runner
