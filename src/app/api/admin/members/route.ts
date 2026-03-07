@@ -48,6 +48,18 @@ export async function PATCH(req: Request) {
     return Response.json({ error: "Cannot demote or remove yourself." }, { status: 400 });
   }
 
+  // Prevent removing the last admin
+  if (action === "demote" || action === "remove") {
+    if (member.role === "ADMIN") {
+      const adminCount = await db.organizationMember.count({
+        where: { organizationId: ctx.organizationId, role: "ADMIN", status: "ACTIVE" },
+      });
+      if (adminCount <= 1) {
+        return Response.json({ error: "Cannot remove the last admin." }, { status: 400 });
+      }
+    }
+  }
+
   switch (action) {
     case "approve":
       await db.organizationMember.update({
@@ -58,11 +70,15 @@ export async function PATCH(req: Request) {
 
     case "reject":
     case "remove":
-      await db.organizationMember.delete({ where: { id: memberId } });
-      // Also delete the user account if rejecting a pending member
-      if (action === "reject" && member.status === "PENDING") {
-        await db.user.delete({ where: { id: member.userId } }).catch(() => {});
-      }
+      // Use a transaction so both deletes succeed or both roll back
+      await db.$transaction(async (tx) => {
+        if (action === "reject" && member.status === "PENDING") {
+          await tx.user.delete({ where: { id: member.userId } });
+          // Cascade will remove the membership row
+        } else {
+          await tx.organizationMember.delete({ where: { id: memberId } });
+        }
+      });
       break;
 
     case "promote":

@@ -1,4 +1,3 @@
-import { auth } from "@/lib/auth";
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -97,11 +96,6 @@ async function saveAuditToDb(
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const ctx = await getOrgContext();
   if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -125,7 +119,7 @@ export async function POST(req: Request) {
   }
 
   // Get and decrypt the current user's API key + model preference
-  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  const user = await db.user.findUnique({ where: { id: ctx.userId } });
   const rawKey = provider === "gemini" ? user?.geminiApiKey : user?.claudeApiKey;
   const modelOverride = provider === "gemini" ? user?.geminiModel : user?.claudeModel;
   if (!rawKey) {

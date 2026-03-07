@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
-    "postbuild": "npx tsx prisma/migrate-to-org.ts",
+    "build": "prisma generate && next build",
+    "db:migrate-org": "npx tsx prisma/migrate-to-org.ts",
     "start": "next start",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

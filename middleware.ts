@@ -6,24 +6,24 @@ export default auth((req) => {
   const isAuthPage =
     req.nextUrl.pathname.startsWith("/login") ||
     req.nextUrl.pathname.startsWith("/register");
-  const isPendingPage = req.nextUrl.pathname === "/pending-approval";
+  const isPendingPage = req.nextUrl.pathname.startsWith("/pending-approval");
 
   if (!isLoggedIn && !isAuthPage) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (isLoggedIn && isAuthPage) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  // Block PENDING members from accessing dashboard — redirect to waiting page
-  if (isLoggedIn && !isAuthPage && !isPendingPage) {
+  // Block PENDING/unapproved members — check before auth-page redirect to avoid double redirect
+  if (isLoggedIn && !isPendingPage) {
     const memberStatus = req.auth?.user?.memberStatus;
     const hasOrg = !!req.auth?.user?.organizationId;
 
     if (!hasOrg || memberStatus === "PENDING") {
       return NextResponse.redirect(new URL("/pending-approval", req.url));
     }
+  }
+
+  if (isLoggedIn && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 });
 

@@ -25,23 +25,22 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Check if any organization exists — first user becomes ADMIN
-    const orgCount = await db.organization.count();
-    const isFirstUser = orgCount === 0;
-
-    const user = await db.$transaction(async (tx) => {
+    const { user, isFirstUser } = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: { name, email, passwordHash },
         select: { id: true, email: true, name: true },
       });
 
-      if (isFirstUser) {
+      // Check inside the transaction to avoid TOCTOU race on first-user detection
+      const orgCount = await tx.organization.count();
+      const firstUser = orgCount === 0;
+
+      if (firstUser) {
         // Create the default organization and make this user ADMIN
-        const org = await tx.organization.create({
-          data: {
-            name: "My Organization",
-            slug: "default",
-          },
+        const org = await tx.organization.upsert({
+          where: { slug: "default" },
+          update: {},
+          create: { name: "My Organization", slug: "default" },
         });
 
         await tx.organizationMember.create({
@@ -58,19 +57,19 @@ export async function POST(req: Request) {
           orderBy: { createdAt: "asc" },
         });
 
-        if (org) {
-          await tx.organizationMember.create({
-            data: {
-              userId: newUser.id,
-              organizationId: org.id,
-              role: "MEMBER",
-              status: "PENDING",
-            },
-          });
-        }
+        if (!org) throw new Error("No organization found. Contact your administrator.");
+
+        await tx.organizationMember.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "MEMBER",
+            status: "PENDING",
+          },
+        });
       }
 
-      return newUser;
+      return { user: newUser, isFirstUser: firstUser };
     });
 
     return Response.json(
@@ -84,7 +83,7 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[register]", error);
-    return Response.json({ error: "Registration failed. Please try again." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+    return Response.json({ error: message }, { status: 500 });
   }
 }
