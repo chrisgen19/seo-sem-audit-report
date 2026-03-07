@@ -4,7 +4,6 @@ import {
   Document,
   HeadingLevel,
   Packer,
-  PageBreak,
   Paragraph,
   ShadingType,
   Table,

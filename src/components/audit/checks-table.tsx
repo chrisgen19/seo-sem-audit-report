@@ -62,7 +62,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
   function toggle(i: number) {
     setOpenRows((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      if (next.has(i)) next.delete(i); else next.add(i);
       return next;
     });
   }
@@ -165,7 +165,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
   function toggleGroup(status: string) {
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      next.has(status) ? next.delete(status) : next.add(status);
+      if (next.has(status)) next.delete(status); else next.add(status);
       return next;
     });
   }
@@ -173,7 +173,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
   function toggleRow(key: string) {
     setOpenRows((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }

@@ -25,7 +25,6 @@ function sseEncoder() {
 async function saveAuditToDb(
   auditRunId: string,
   analysis: AnalysisResult,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   crawlData: Record<string, unknown>
 ) {
   const techChecks = analysis.technical_seo.checks.map((c) => ({
