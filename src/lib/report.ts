@@ -157,6 +157,27 @@ function bulletItem(text: string, num?: number): Paragraph {
   });
 }
 
+/**
+ * Extracts the summary sentence from a detailed finding.
+ * Strips bullet-point item lists that follow — those are for the web UI only.
+ */
+function summarizeFinding(finding: string, maxLen = 250): string {
+  // Take text before the first bullet list or "Affected items:" / "Images without" etc.
+  const cutPatterns = /\n\n(?:Affected|Images|Missing|Headers|Items|Links|Tags|Scripts|Elements|Headings|Checks)[^\n]*:\s*\n/i;
+  let summary = finding.split(cutPatterns)[0].trim();
+
+  // Also cut at double-newline followed by "- " bullet
+  const bulletStart = summary.indexOf("\n\n- ");
+  if (bulletStart > 0) summary = summary.slice(0, bulletStart).trim();
+
+  // Also cut at single newline + bullet if it looks like a list
+  const singleBullet = summary.indexOf("\n- ");
+  if (singleBullet > 0) summary = summary.slice(0, singleBullet).trim();
+
+  if (summary.length > maxLen) summary = summary.slice(0, maxLen).trimEnd() + "...";
+  return summary;
+}
+
 // ── Types (mirror what comes from DB) ────────────────────────────
 
 export interface ReportCheck {
@@ -722,7 +743,7 @@ function checksTable(checks: ReportCheck[]): Table {
               children: [
                 new Paragraph({
                   spacing: { before: 40, after: 20 },
-                  children: [run(check.finding, { size: 20 })],
+                  children: [run(summarizeFinding(check.finding), { size: 20 })],
                 }),
                 new Paragraph({
                   spacing: { before: 20, after: 40 },

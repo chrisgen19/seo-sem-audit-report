@@ -22,7 +22,36 @@ interface ChecksTableProps {
 }
 
 function truncate(text: string, max = 100) {
-  return text.length <= max ? text : text.slice(0, max).trimEnd() + "…";
+  // For truncated view, only show the first line/sentence (before bullet lists)
+  const firstLine = text.split("\n")[0];
+  const clean = firstLine.length <= max ? firstLine : firstLine.slice(0, max).trimEnd() + "…";
+  return clean;
+}
+
+/** Renders finding text with proper newlines, bullet points, and structure */
+function FormattedFinding({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith("- ")) {
+          return (
+            <div key={i} className="flex gap-1.5 pl-2">
+              <span className="text-gray-400 shrink-0">•</span>
+              <span className="text-gray-600 text-sm break-all">{trimmed.slice(2)}</span>
+            </div>
+          );
+        }
+        return (
+          <p key={i} className="text-gray-700 text-sm">
+            {trimmed}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Per-row mode ──────────────────────────────────────────────────────────────
@@ -86,7 +115,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                   <tr className="bg-gray-50">
                     <td />
                     <td colSpan={3} className="px-4 pb-4 pt-2">
-                      <p className="text-gray-700 text-sm">{check.finding}</p>
+                      <FormattedFinding text={check.finding} />
                       {check.recommendation && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -205,7 +234,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
                       </button>
                       {isOpen && (
                         <div className="px-4 pb-4 pt-1 ml-7 bg-gray-50">
-                          <p className="text-gray-700 text-sm">{check.finding}</p>
+                          <FormattedFinding text={check.finding} />
                           {check.recommendation && (
                             <div className="mt-2 pt-2 border-t border-gray-200">
                               <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">

@@ -53,6 +53,14 @@ export class SEOCrawler {
     this.checkHttps();
     this.checkCanonical();
     this.extractScriptsAndStyles();
+    this.extractSecurityHeaders();
+    this.extractCTAs();
+    this.extractPhoneNumbers();
+    this.detectTrustSignals();
+    this.extractFAQs();
+    this.checkFavicon();
+    this.extractHreflang();
+    this.detectConversionTracking();
     return this.data;
   }
 
@@ -141,6 +149,7 @@ export class SEOCrawler {
 
     this.data.meta_robots = $('meta[name="robots"]').attr("content") ?? null;
     this.data.has_viewport = $('meta[name="viewport"]').length > 0;
+    this.data.viewport_content = $('meta[name="viewport"]').attr("content") ?? undefined;
     this.data.charset = $("meta[charset]").attr("charset") ?? null;
     this.data.html_lang = $("html").attr("lang") ?? null;
 
@@ -172,7 +181,7 @@ export class SEOCrawler {
     const text = $("body").text().replace(/\s+/g, " ").trim();
     const words = text.split(" ").filter(Boolean);
     this.data.word_count = words.length;
-    this.data.content_text = text.slice(0, 5000);
+    this.data.content_text = text.slice(0, 6000);
 
     const paragraphs = $("p")
       .toArray()
@@ -224,9 +233,9 @@ export class SEOCrawler {
       }
     });
 
-    this.data.internal_links = internal.slice(0, 50);
+    this.data.internal_links = internal.slice(0, 75);
     this.data.internal_link_count = internal.length;
-    this.data.external_links = external.slice(0, 20);
+    this.data.external_links = external.slice(0, 30);
     this.data.external_link_count = external.length;
     this.data.tel_links = telLinks;
     this.data.has_phone_link = telLinks.length > 0;
@@ -275,7 +284,7 @@ export class SEOCrawler {
       });
     });
 
-    this.data.images = images.slice(0, 30);
+    this.data.images = images.slice(0, 50);
     this.data.image_count = images.length;
 
     const missingAlt = images.filter((i) => !i.has_alt).length;
@@ -391,8 +400,20 @@ export class SEOCrawler {
 
   private extractScriptsAndStyles() {
     const $ = this.$;
-    this.data.external_script_count = $("script[src]").length;
-    this.data.external_style_count = $('link[rel="stylesheet"]').length;
+    const scripts: string[] = [];
+    $("script[src]").each((_, el) => {
+      const src = $(el).attr("src") ?? "";
+      if (src) scripts.push(src.slice(0, 200));
+    });
+    const styles: string[] = [];
+    $('link[rel="stylesheet"]').each((_, el) => {
+      const href = $(el).attr("href") ?? "";
+      if (href) styles.push(href.slice(0, 200));
+    });
+    this.data.external_script_count = scripts.length;
+    this.data.external_style_count = styles.length;
+    this.data.external_scripts = scripts.slice(0, 20);
+    this.data.external_styles = styles.slice(0, 15);
 
     const indicators: string[] = [];
     if (this.html.includes("wp-content")) indicators.push("WordPress");
@@ -406,5 +427,244 @@ export class SEOCrawler {
 
     this.data.tech_detected = indicators;
     this.onProgress(`Tech: ${indicators.join(", ") || "None identified"}`);
+  }
+
+  private extractSecurityHeaders() {
+    this.onProgress("Checking security headers...");
+    const headers = this.data.headers ?? {};
+    const get = (name: string) => {
+      const key = Object.keys(headers).find((k) => k.toLowerCase() === name.toLowerCase());
+      return key ? headers[key] : null;
+    };
+
+    const hsts = get("strict-transport-security");
+    const csp = get("content-security-policy");
+    const xfo = get("x-frame-options");
+    const xcto = get("x-content-type-options");
+    const rp = get("referrer-policy");
+    const pp = get("permissions-policy");
+
+    const missing: string[] = [];
+    if (!hsts) missing.push("Strict-Transport-Security (HSTS)");
+    if (!csp) missing.push("Content-Security-Policy (CSP)");
+    if (!xfo) missing.push("X-Frame-Options");
+    if (!xcto) missing.push("X-Content-Type-Options");
+    if (!rp) missing.push("Referrer-Policy");
+    if (!pp) missing.push("Permissions-Policy");
+
+    this.data.security_headers = {
+      hsts: hsts ? hsts.slice(0, 200) : null,
+      csp: csp ? csp.slice(0, 300) : null,
+      x_frame_options: xfo ?? null,
+      x_content_type_options: xcto ?? null,
+      referrer_policy: rp ?? null,
+      permissions_policy: pp ? pp.slice(0, 200) : null,
+      missing,
+    };
+
+    this.onProgress(
+      missing.length
+        ? `Security headers missing: ${missing.length} (${missing.join(", ")})`
+        : "All key security headers present"
+    );
+  }
+
+  private extractCTAs() {
+    this.onProgress("Detecting CTA elements...");
+    const $ = this.$;
+    const ctas: NonNullable<CrawlData["cta_elements"]> = [];
+    let index = 0;
+
+    // Buttons
+    $("button, input[type='submit'], input[type='button']").each((_, el) => {
+      const text = ($(el).text().trim() || $(el).attr("value") || "").slice(0, 80);
+      if (text) {
+        ctas.push({ tag: el.tagName.toLowerCase(), text, position_index: index++ });
+      }
+    });
+
+    // Link-buttons: <a> with button-like classes or CTA text
+    const ctaPatterns = /\b(buy|shop|order|sign.?up|register|subscribe|get.?started|contact|enquir|inquir|call|book|schedule|download|free|trial|demo|learn.?more|find.?out|request|apply|join|donate|add.?to.?cart|checkout|quote)\b/i;
+    const buttonClassPatterns = /\b(btn|button|cta)\b/i;
+
+    $("a[href]").each((_, el) => {
+      const text = $(el).text().trim().slice(0, 80);
+      const cls = $(el).attr("class") ?? "";
+      const href = $(el).attr("href") ?? "";
+      if (!text) return;
+      if (ctaPatterns.test(text) || buttonClassPatterns.test(cls)) {
+        ctas.push({ tag: "a", text, href: href.slice(0, 200), position_index: index++ });
+      }
+    });
+
+    this.data.cta_elements = ctas.slice(0, 25);
+    this.onProgress(`CTAs detected: ${ctas.length}`);
+  }
+
+  private extractPhoneNumbers() {
+    this.onProgress("Detecting phone numbers in content...");
+    const $ = cheerio.load(this.html);
+    $("script, style, noscript").remove();
+    const text = $("body").text();
+
+    // Match common phone formats globally
+    const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g;
+    const matches = text.match(phoneRegex) ?? [];
+    // Filter to likely phone numbers (at least 8 digits)
+    const phones = [...new Set(
+      matches
+        .map((m) => m.trim())
+        .filter((m) => m.replace(/\D/g, "").length >= 8 && m.replace(/\D/g, "").length <= 15)
+    )];
+
+    this.data.phone_numbers_in_text = phones.slice(0, 10);
+    this.onProgress(`Phone numbers in text: ${phones.length}`);
+  }
+
+  private detectTrustSignals() {
+    this.onProgress("Detecting trust signals...");
+    const $ = this.$;
+    const html = this.html.toLowerCase();
+    const bodyText = $("body").text().toLowerCase();
+    const details: string[] = [];
+
+    // Testimonials
+    const hasTestimonials =
+      bodyText.includes("testimonial") ||
+      bodyText.includes("what our clients say") ||
+      bodyText.includes("what our customers say") ||
+      bodyText.includes("client feedback") ||
+      $("[class*='testimonial'], [id*='testimonial']").length > 0;
+    if (hasTestimonials) details.push("Testimonials section detected");
+
+    // Reviews / ratings
+    const hasReviews =
+      bodyText.includes("review") ||
+      html.includes("star-rating") ||
+      html.includes("rating") ||
+      $("[class*='review'], [id*='review'], [class*='rating']").length > 0;
+    if (hasReviews) details.push("Reviews/ratings detected");
+
+    // Trust badges
+    const hasTrustBadges =
+      $("img[alt*='trust'], img[alt*='secure'], img[alt*='verified'], img[alt*='badge']").length > 0 ||
+      $("[class*='trust-badge'], [class*='trust_badge']").length > 0;
+    if (hasTrustBadges) details.push("Trust badges detected");
+
+    // Certifications
+    const hasCertifications =
+      bodyText.includes("certified") ||
+      bodyText.includes("certification") ||
+      bodyText.includes("accredited") ||
+      bodyText.includes("iso ") ||
+      $("img[alt*='certif'], img[alt*='accredit']").length > 0;
+    if (hasCertifications) details.push("Certifications/accreditations detected");
+
+    // Partner/client logos
+    const hasPartnerLogos =
+      bodyText.includes("our partners") ||
+      bodyText.includes("our clients") ||
+      bodyText.includes("trusted by") ||
+      bodyText.includes("as seen") ||
+      $("[class*='partner'], [class*='client-logo'], [class*='logo-grid']").length > 0;
+    if (hasPartnerLogos) details.push("Partner/client logos section detected");
+
+    this.data.trust_signals = {
+      has_testimonials: hasTestimonials,
+      has_reviews: hasReviews,
+      has_trust_badges: hasTrustBadges,
+      has_certifications: hasCertifications,
+      has_partner_logos: hasPartnerLogos,
+      details,
+    };
+
+    this.onProgress(details.length ? `Trust signals: ${details.join(", ")}` : "No trust signals detected");
+  }
+
+  private extractFAQs() {
+    this.onProgress("Checking for FAQ content...");
+    const $ = this.$;
+    const faqs: NonNullable<CrawlData["faq_elements"]> = [];
+
+    // Check FAQ schema
+    $('script[type="application/ld+json"]').each((_, el) => {
+      try {
+        const json = JSON.parse($(el).html() ?? "{}");
+        const items = json["@type"] === "FAQPage" ? json.mainEntity : null;
+        if (Array.isArray(items)) {
+          items.forEach((item: { name?: string; acceptedAnswer?: { text?: string } }) => {
+            faqs.push({
+              question: (item.name ?? "").slice(0, 150),
+              answer_preview: (item.acceptedAnswer?.text ?? "").slice(0, 200),
+            });
+          });
+        }
+      } catch { /* ignore */ }
+    });
+
+    // Check accordion/details elements
+    $("details summary, .accordion-header, .faq-question, [class*='faq'] h3, [class*='faq'] h4").each((_, el) => {
+      const question = $(el).text().trim().slice(0, 150);
+      if (question && !faqs.some((f) => f.question === question)) {
+        faqs.push({ question, answer_preview: "" });
+      }
+    });
+
+    this.data.faq_elements = faqs.slice(0, 20);
+    this.onProgress(`FAQ elements: ${faqs.length}`);
+  }
+
+  private checkFavicon() {
+    const $ = this.$;
+    const favicon =
+      $('link[rel="icon"]').length > 0 ||
+      $('link[rel="shortcut icon"]').length > 0 ||
+      $('link[rel="apple-touch-icon"]').length > 0;
+    this.data.has_favicon = favicon;
+  }
+
+  private extractHreflang() {
+    const $ = this.$;
+    const tags: NonNullable<CrawlData["hreflang_tags"]> = [];
+    $('link[rel="alternate"][hreflang]').each((_, el) => {
+      tags.push({
+        lang: $(el).attr("hreflang") ?? "",
+        href: ($(el).attr("href") ?? "").slice(0, 200),
+      });
+    });
+    this.data.hreflang_tags = tags;
+    if (tags.length) this.onProgress(`hreflang tags: ${tags.length}`);
+  }
+
+  private detectConversionTracking() {
+    this.onProgress("Detecting conversion tracking...");
+    const html = this.html;
+    const detected: string[] = [];
+
+    const hasGA4 = html.includes("gtag('config', 'G-") || html.includes("measurement_id");
+    const hasGTM = html.includes("googletagmanager.com/gtm.js") || html.includes("googletagmanager.com/ns.html");
+    const hasFBPixel = html.includes("fbq(") || html.includes("connect.facebook.net");
+    const hasGoogleAds = html.includes("gtag('config', 'AW-") || html.includes("googleads.g.doubleclick.net") || html.includes("google_conversion");
+    const hasLinkedIn = html.includes("snap.licdn.com") || html.includes("linkedin.com/insight");
+    const hasHotjar = html.includes("hotjar.com") || html.includes("hj(");
+
+    if (hasGA4) detected.push("Google Analytics 4 (GA4)");
+    if (hasGTM) detected.push("Google Tag Manager (GTM)");
+    if (hasFBPixel) detected.push("Facebook/Meta Pixel");
+    if (hasGoogleAds) detected.push("Google Ads Conversion Tracking");
+    if (hasLinkedIn) detected.push("LinkedIn Insight Tag");
+    if (hasHotjar) detected.push("Hotjar");
+
+    this.data.conversion_tracking = {
+      has_ga4: hasGA4,
+      has_gtm: hasGTM,
+      has_facebook_pixel: hasFBPixel,
+      has_google_ads: hasGoogleAds,
+      has_linkedin_insight: hasLinkedIn,
+      has_hotjar: hasHotjar,
+      detected,
+    };
+
+    this.onProgress(detected.length ? `Tracking: ${detected.join(", ")}` : "No conversion tracking detected");
   }
 }
