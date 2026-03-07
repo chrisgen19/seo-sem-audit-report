@@ -43,7 +43,7 @@ export default async function AuditResultPage({
     const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
     return {
       id: r.id,
-      createdAt: r.createdAt.toISOString(),
+      createdAt: typeof r.createdAt === "string" ? r.createdAt : r.createdAt.toISOString(),
       overallScore: r.overallScore,
       technicalScore: r.technicalScore,
       contentScore: r.contentScore,

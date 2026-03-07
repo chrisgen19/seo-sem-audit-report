@@ -44,7 +44,7 @@ export default async function PageDetailPage({
       technicalScore: run.technicalScore,
       contentScore: run.contentScore,
       semScore: run.semScore,
-      createdAt: run.createdAt.toISOString(),
+      createdAt: typeof run.createdAt === "string" ? run.createdAt : run.createdAt.toISOString(),
       errorMessage: run.errorMessage ?? null,
       psiMobile: psiM ?? null,
       psiDesktop: psiD ?? null,
