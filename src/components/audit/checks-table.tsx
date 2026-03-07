@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { statusBadgeClass, cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Rows3, Layers } from "lucide-react";
+import { ChevronDown, ChevronRight, Rows3, Layers, ExternalLink } from "lucide-react";
+import { CHECK_RESOURCES } from "@/lib/check-resources";
 
 type GroupMode = "per-row" | "per-group";
 type StatusFilter = "ALL" | "FAIL" | "WARN" | "PASS";
@@ -50,6 +51,32 @@ function FormattedFinding({ text }: { text: string }) {
           </p>
         );
       })}
+    </div>
+  );
+}
+
+function ResourceLinks({ checkName }: { checkName: string }) {
+  const resources = CHECK_RESOURCES[checkName];
+  if (!resources?.length) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-200">
+      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+        Helpful Resources
+      </span>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {resources.map((r) => (
+          <a
+            key={r.url}
+            href={r.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            {r.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -124,6 +151,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                           <p className="mt-1 text-sm text-gray-600">{check.recommendation}</p>
                         </div>
                       )}
+                      <ResourceLinks checkName={check.name} />
                     </td>
                   </tr>
                 )}
@@ -243,6 +271,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
                               <p className="mt-1 text-sm text-gray-600">{check.recommendation}</p>
                             </div>
                           )}
+                          <ResourceLinks checkName={check.name} />
                         </div>
                       )}
                     </div>
