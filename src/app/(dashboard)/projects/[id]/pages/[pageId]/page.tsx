@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
-import { ScoreTrendChart } from "@/components/audit/score-trend-chart";
+import { ScoreTrendChart, ScoreSummaryRow } from "@/components/audit/score-trend-chart";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { DeleteAuditButton } from "@/components/audit/delete-audit-button";
@@ -38,6 +38,7 @@ export default async function PageDetailPage({
           createdAt: true,
           completedAt: true,
           errorMessage: true,
+          meta: { select: { rawCrawlData: true } },
         },
       },
     },
@@ -47,6 +48,14 @@ export default async function PageDetailPage({
 
   const doneRuns = page.auditRuns.filter((r) => r.status === "done");
   const latestRun = [...doneRuns].reverse()[0];
+
+  // Extract PSI scores for chart and history
+  const doneRunsWithPsi = doneRuns.map((r) => {
+    const raw = r.meta?.rawCrawlData as Record<string, unknown> | null;
+    const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    return { ...r, psiMobile: psiM ?? null, psiDesktop: psiD ?? null };
+  });
 
   return (
     <div>
@@ -73,23 +82,33 @@ export default async function PageDetailPage({
         }
       />
 
-      {/* Score trend chart */}
-      {doneRuns.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Score Trend</h2>
-            {latestRun && (
-              <span className="text-sm text-gray-500">
-                Latest:{" "}
-                <span className="font-bold text-gray-900">
-                  {latestRun.overallScore}/100 ({latestRun.overallGrade})
-                </span>
+      {/* Score trend */}
+      {doneRuns.length > 0 && (() => {
+        const latestWithPsi = doneRunsWithPsi[doneRunsWithPsi.length - 1];
+        const prevWithPsi = doneRunsWithPsi.length >= 2 ? doneRunsWithPsi[doneRunsWithPsi.length - 2] : null;
+
+        const summaryScores = [
+          { label: "Overall", current: latestRun?.overallScore ?? null, previous: prevWithPsi?.overallScore ?? null, color: "#1F4E79" },
+          { label: "Technical", current: latestRun?.technicalScore ?? null, previous: prevWithPsi?.technicalScore ?? null, color: "#2196F3" },
+          { label: "Content", current: latestRun?.contentScore ?? null, previous: prevWithPsi?.contentScore ?? null, color: "#27AE60" },
+          { label: "SEM", current: latestRun?.semScore ?? null, previous: prevWithPsi?.semScore ?? null, color: "#F39C12" },
+          { label: "PSI Mobile", current: latestWithPsi?.psiMobile ?? null, previous: prevWithPsi?.psiMobile ?? null, color: "#E74C3C" },
+          { label: "PSI Desktop", current: latestWithPsi?.psiDesktop ?? null, previous: prevWithPsi?.psiDesktop ?? null, color: "#9B59B6" },
+        ];
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Score Trend</h2>
+              <span className="text-xs text-gray-400">
+                {doneRunsWithPsi.length} audit{doneRunsWithPsi.length !== 1 ? "s" : ""}
               </span>
-            )}
+            </div>
+            <ScoreSummaryRow scores={summaryScores} />
+            <ScoreTrendChart runs={doneRunsWithPsi} />
           </div>
-          <ScoreTrendChart runs={doneRuns} />
-        </div>
-      )}
+        );
+      })()}
 
       {/* Audit history */}
       <div className="bg-white rounded-xl border border-gray-200">
@@ -111,7 +130,11 @@ export default async function PageDetailPage({
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {[...page.auditRuns].reverse().map((run) => (
+            {[...page.auditRuns].reverse().map((run) => {
+              const raw = run.meta?.rawCrawlData as Record<string, unknown> | null;
+              const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+              const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+              return (
               <div key={run.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{formatDateTime(run.createdAt)}</p>
@@ -121,12 +144,14 @@ export default async function PageDetailPage({
                 <div className="flex items-center gap-6">
                   {run.status === "done" ? (
                     <>
-                      <div className="grid grid-cols-4 gap-3 text-center">
+                      <div className="grid grid-cols-6 gap-3 text-center">
                         {[
                           { label: "Overall", score: run.overallScore },
                           { label: "Tech", score: run.technicalScore },
                           { label: "Content", score: run.contentScore },
                           { label: "SEM", score: run.semScore },
+                          { label: "PSI M", score: psiM ?? null },
+                          { label: "PSI D", score: psiD ?? null },
                         ].map(({ label, score }) => (
                           <div key={label} className="text-center">
                             <p className="text-xs text-gray-400">{label}</p>
@@ -155,7 +180,8 @@ export default async function PageDetailPage({
                   <DeleteAuditButton auditId={run.id} />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

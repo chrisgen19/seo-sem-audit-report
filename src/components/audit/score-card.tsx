@@ -3,7 +3,7 @@ import { cn, gradeColor, scoreBg } from "@/lib/utils";
 interface ScoreCardProps {
   label: string;
   score: number;
-  grade: string;
+  grade?: string;
   previousScore?: number;
   className?: string;
 }
@@ -17,14 +17,16 @@ export function ScoreCard({ label, score, grade, previousScore, className }: Sco
       <div className="flex items-end gap-3">
         <span className="text-4xl font-bold text-gray-900">{score}</span>
         <span className="text-lg text-gray-400 mb-1">/ 100</span>
-        <span
-          className={cn(
-            "text-2xl font-bold mb-1",
-            gradeColor(grade)
-          )}
-        >
-          {grade}
-        </span>
+        {grade && (
+          <span
+            className={cn(
+              "text-2xl font-bold mb-1",
+              gradeColor(grade)
+            )}
+          >
+            {grade}
+          </span>
+        )}
       </div>
 
       {/* Score bar */}

@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { CrawlData } from "@/types/audit";
+import type { CrawlData, PsiResult, PsiAuditItem } from "@/types/audit";
 
 type ProgressCallback = (message: string) => void;
 
@@ -680,14 +680,38 @@ export class SEOCrawler {
   }
 
   private async fetchPageSpeedInsights() {
-    this.onProgress("Running PageSpeed Insights (this takes 15–30s)...");
+    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 20–40s)...");
 
+    // Fetch both strategies in parallel
+    const [mobile, desktop] = await Promise.all([
+      this.fetchPsiStrategy("mobile"),
+      this.fetchPsiStrategy("desktop"),
+    ]);
+
+    if (mobile) {
+      this.data.psi = mobile;
+      this.onProgress(
+        `PSI Mobile: ${mobile.performance_score}/100 | LCP: ${(mobile.lcp / 1000).toFixed(1)}s | CLS: ${mobile.cls} | TBT: ${mobile.tbt}ms`
+      );
+    }
+    if (desktop) {
+      this.data.psi_desktop = desktop;
+      this.onProgress(
+        `PSI Desktop: ${desktop.performance_score}/100 | LCP: ${(desktop.lcp / 1000).toFixed(1)}s | CLS: ${desktop.cls} | TBT: ${desktop.tbt}ms`
+      );
+    }
+    if (!mobile && !desktop) {
+      this.onProgress("PageSpeed Insights: unavailable for both strategies");
+    }
+  }
+
+  private async fetchPsiStrategy(strategy: "mobile" | "desktop"): Promise<PsiResult | null> {
     const PSI_MAX_RETRIES = 3;
     const PSI_INITIAL_DELAY = 5000;
 
     const params = new URLSearchParams({
       url: this.url,
-      strategy: "mobile",
+      strategy,
       category: "performance",
     });
     if (process.env.GOOGLE_PSI_API_KEY) {
@@ -702,74 +726,148 @@ export class SEOCrawler {
         if (resp.status === 429 || resp.status === 503) {
           if (attempt < PSI_MAX_RETRIES) {
             const delay = PSI_INITIAL_DELAY * attempt;
-            this.onProgress(`PageSpeed Insights: rate limited (${resp.status}), retrying in ${delay / 1000}s... (${attempt}/${PSI_MAX_RETRIES})`);
+            this.onProgress(`PSI ${strategy}: rate limited (${resp.status}), retrying in ${delay / 1000}s... (${attempt}/${PSI_MAX_RETRIES})`);
             await new Promise((r) => setTimeout(r, delay));
             continue;
           }
-          this.data.psi_error = `PSI API returned ${resp.status} after ${PSI_MAX_RETRIES} attempts`;
-          this.onProgress(`PageSpeed Insights: rate limited after ${PSI_MAX_RETRIES} attempts`);
-          return;
+          this.data.psi_error = `PSI API (${strategy}) returned ${resp.status} after ${PSI_MAX_RETRIES} attempts`;
+          return null;
         }
 
         if (!resp.ok) {
-          this.data.psi_error = `PSI API returned ${resp.status}`;
-          this.onProgress(`PageSpeed Insights: API error (${resp.status})`);
-          return;
+          this.data.psi_error = `PSI API (${strategy}) returned ${resp.status}`;
+          return null;
         }
 
         const json = await resp.json();
         const lhr = json.lighthouseResult;
         if (!lhr) {
-          this.data.psi_error = "No Lighthouse result in PSI response";
-          this.onProgress("PageSpeed Insights: No Lighthouse data");
-          return;
+          this.data.psi_error = `No Lighthouse result for ${strategy}`;
+          return null;
         }
 
-        const audits = lhr.audits ?? {};
-        const perfScore = Math.round((lhr.categories?.performance?.score ?? 0) * 100);
-        const fcp = audits["first-contentful-paint"]?.numericValue ?? 0;
-        const lcp = audits["largest-contentful-paint"]?.numericValue ?? 0;
-        const cls = audits["cumulative-layout-shift"]?.numericValue ?? 0;
-        const tbt = audits["total-blocking-time"]?.numericValue ?? 0;
-        const si = audits["speed-index"]?.numericValue ?? 0;
-        const ttfb = audits["server-response-time"]?.numericValue ?? 0;
-
-        const ratingOf = (audit: { score?: number }): string => {
-          const s = audit?.score ?? 0;
-          if (s >= 0.9) return "FAST";
-          if (s >= 0.5) return "AVERAGE";
-          return "SLOW";
-        };
-
-        this.data.psi = {
-          performance_score: perfScore,
-          fcp: Math.round(fcp),
-          lcp: Math.round(lcp),
-          cls: Math.round(cls * 1000) / 1000,
-          tbt: Math.round(tbt),
-          si: Math.round(si),
-          ttfb: Math.round(ttfb),
-          fcp_rating: ratingOf(audits["first-contentful-paint"] ?? {}),
-          lcp_rating: ratingOf(audits["largest-contentful-paint"] ?? {}),
-          cls_rating: ratingOf(audits["cumulative-layout-shift"] ?? {}),
-          tbt_rating: ratingOf(audits["total-blocking-time"] ?? {}),
-          strategy: "mobile",
-        };
-
-        this.onProgress(
-          `PageSpeed: ${perfScore}/100 | LCP: ${(lcp / 1000).toFixed(1)}s | CLS: ${cls.toFixed(3)} | TBT: ${Math.round(tbt)}ms`
-        );
-        return;
+        return this.parseLighthouseResult(lhr, strategy);
       } catch (err) {
         if (attempt < PSI_MAX_RETRIES) {
           const delay = PSI_INITIAL_DELAY * attempt;
-          this.onProgress(`PageSpeed Insights: error, retrying in ${delay / 1000}s... (${attempt}/${PSI_MAX_RETRIES})`);
+          this.onProgress(`PSI ${strategy}: error, retrying in ${delay / 1000}s... (${attempt}/${PSI_MAX_RETRIES})`);
           await new Promise((r) => setTimeout(r, delay));
           continue;
         }
         this.data.psi_error = String(err);
-        this.onProgress(`PageSpeed Insights: ${err instanceof Error ? err.message : "failed"}`);
+        return null;
       }
     }
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private parseLighthouseResult(lhr: any, strategy: string): PsiResult {
+    const audits = lhr.audits ?? {};
+    const perfScore = Math.round((lhr.categories?.performance?.score ?? 0) * 100);
+
+    const ratingOf = (audit: { score?: number }): string => {
+      const s = audit?.score ?? 0;
+      if (s >= 0.9) return "FAST";
+      if (s >= 0.5) return "AVERAGE";
+      return "SLOW";
+    };
+
+    // Build audit item groups from category auditRefs
+    const auditRefs: Array<{ id: string; group?: string }> =
+      lhr.categories?.performance?.auditRefs ?? [];
+
+    const opportunityIds = new Set(auditRefs.filter((r) => r.group === "load-opportunities").map((r) => r.id));
+    const diagnosticIds = new Set(auditRefs.filter((r) => r.group === "diagnostics").map((r) => r.id));
+
+    const auditItems: PsiAuditItem[] = [];
+    for (const ref of auditRefs) {
+      const audit = audits[ref.id];
+      if (!audit) continue;
+      // Skip metrics (they're shown separately) and hidden audits
+      if (ref.group === "metrics" || !ref.group) continue;
+      if (audit.scoreDisplayMode === "notApplicable" || audit.scoreDisplayMode === "manual") continue;
+
+      let group: PsiAuditItem["group"];
+      if (opportunityIds.has(ref.id)) {
+        // Only include opportunities that have potential savings or failed
+        if (audit.score === 1 || audit.score === null) {
+          group = "passed";
+        } else {
+          group = "opportunity";
+        }
+      } else if (diagnosticIds.has(ref.id)) {
+        if (audit.score === 1 || audit.score === null) {
+          group = "passed";
+        } else {
+          group = "diagnostic";
+        }
+      } else {
+        // Other group — treat as passed if score is 1
+        if (audit.score !== null && audit.score < 1) {
+          group = "diagnostic";
+        } else {
+          group = "passed";
+        }
+      }
+
+      const item: PsiAuditItem = {
+        id: ref.id,
+        title: audit.title ?? ref.id,
+        description: audit.description ?? undefined,
+        score: audit.score ?? null,
+        group,
+        displayValue: audit.displayValue ?? undefined,
+      };
+
+      // Extract savings and detail items from details
+      const details = audit.details;
+      if (details) {
+        if (details.overallSavingsMs) item.savings_ms = Math.round(details.overallSavingsMs);
+        if (details.overallSavingsBytes) item.savings_bytes = Math.round(details.overallSavingsBytes);
+
+        // Extract per-resource detail items (headings + items) for expandable view
+        if (details.type === "table" || details.type === "opportunity") {
+          const headings = (details.headings ?? [])
+            .filter((h: { key?: string }) => h.key)
+            .map((h: { key: string; label?: string; valueType?: string }) => ({
+              key: h.key,
+              label: h.label ?? h.key,
+              valueType: h.valueType ?? "text",
+            }));
+          const items = (details.items ?? []).slice(0, 25); // Cap at 25 rows to avoid huge payloads
+          if (headings.length > 0 && items.length > 0) {
+            item.details = { headings, items };
+          }
+        }
+      }
+
+      auditItems.push(item);
+    }
+
+    // Sort: opportunities first (by savings desc), then diagnostics, then passed
+    const groupOrder = { opportunity: 0, diagnostic: 1, passed: 2 };
+    auditItems.sort((a, b) => {
+      const gDiff = groupOrder[a.group] - groupOrder[b.group];
+      if (gDiff !== 0) return gDiff;
+      return (b.savings_ms ?? 0) - (a.savings_ms ?? 0);
+    });
+
+    return {
+      performance_score: perfScore,
+      fcp: Math.round(audits["first-contentful-paint"]?.numericValue ?? 0),
+      lcp: Math.round(audits["largest-contentful-paint"]?.numericValue ?? 0),
+      cls: Math.round((audits["cumulative-layout-shift"]?.numericValue ?? 0) * 1000) / 1000,
+      tbt: Math.round(audits["total-blocking-time"]?.numericValue ?? 0),
+      si: Math.round(audits["speed-index"]?.numericValue ?? 0),
+      ttfb: Math.round(audits["server-response-time"]?.numericValue ?? 0),
+      fcp_rating: ratingOf(audits["first-contentful-paint"] ?? {}),
+      lcp_rating: ratingOf(audits["largest-contentful-paint"] ?? {}),
+      cls_rating: ratingOf(audits["cumulative-layout-shift"] ?? {}),
+      tbt_rating: ratingOf(audits["total-blocking-time"] ?? {}),
+      si_rating: ratingOf(audits["speed-index"] ?? {}),
+      strategy,
+      audits: auditItems,
+    };
   }
 }

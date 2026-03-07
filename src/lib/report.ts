@@ -231,6 +231,8 @@ export interface ReportData {
   quickWins: ReportQuickWin[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawCrawlData: Record<string, any> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevRawCrawlData?: Record<string, any> | null;
 }
 
 // ── Main generator ────────────────────────────────────────────────
@@ -311,10 +313,18 @@ export async function generateDocxReport(data: ReportData): Promise<Buffer> {
     data.prevOverallScore !== undefined &&
     data.prevOverallScore !== null;
 
+  // Extract PSI scores from raw crawl data
+  const psiMobileScore = (data.rawCrawlData?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const psiDesktopScore = (data.rawCrawlData?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const prevPsiMobileScore = (data.prevRawCrawlData?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const prevPsiDesktopScore = (data.prevRawCrawlData?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+
   const scoreRows = [
     ["Technical SEO", data.technicalScore, data.technicalGrade, deltaStr(data.technicalScore, data.prevTechnicalScore)],
     ["Content SEO", data.contentScore, data.contentGrade, deltaStr(data.contentScore, data.prevContentScore)],
     ["SEM / AdWords Readiness", data.semScore, data.semGrade, deltaStr(data.semScore, data.prevSemScore)],
+    ...(psiMobileScore !== undefined ? [["PageSpeed (Mobile)", psiMobileScore, null, deltaStr(psiMobileScore, prevPsiMobileScore ?? null)] as [string, number | null, string | null, string]] : []),
+    ...(psiDesktopScore !== undefined ? [["PageSpeed (Desktop)", psiDesktopScore, null, deltaStr(psiDesktopScore, prevPsiDesktopScore ?? null)] as [string, number | null, string | null, string]] : []),
   ] as [string, number | null, string | null, string][];
 
   const scoreTable = new Table({
@@ -380,6 +390,96 @@ export async function generateDocxReport(data: ReportData): Promise<Buffer> {
   });
 
   children.push(scoreTable);
+
+  // ── PageSpeed Insights ───────────────────────────────────────
+  const psiMobile = data.rawCrawlData?.psi as Record<string, unknown> | undefined;
+  const psiDesktop = data.rawCrawlData?.psi_desktop as Record<string, unknown> | undefined;
+
+  if (psiMobile || psiDesktop) {
+    children.push(sectionHeading("PageSpeed Insights (Core Web Vitals)"));
+
+    for (const [label, psi] of [["Mobile", psiMobile], ["Desktop", psiDesktop]] as [string, Record<string, unknown> | undefined][]) {
+      if (!psi) continue;
+
+      children.push(subHeading(`${label} — Performance Score: ${psi.performance_score ?? "N/A"}/100`));
+
+      const metricsRows: [string, string, string][] = [
+        ["First Contentful Paint (FCP)", formatPsiMs(psi.fcp as number), String(psi.fcp_rating ?? "")],
+        ["Largest Contentful Paint (LCP)", formatPsiMs(psi.lcp as number), String(psi.lcp_rating ?? "")],
+        ["Total Blocking Time (TBT)", `${psi.tbt ?? 0} ms`, String(psi.tbt_rating ?? "")],
+        ["Cumulative Layout Shift (CLS)", String(psi.cls ?? 0), String(psi.cls_rating ?? "")],
+        ["Speed Index", formatPsiMs(psi.si as number), String(psi.si_rating ?? "")],
+        ["Time to First Byte (TTFB)", `${psi.ttfb ?? 0} ms`, ""],
+      ];
+
+      children.push(
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: [headerCell("Metric", 3600), headerCell("Value", 2400), headerCell("Rating", 2400)],
+            }),
+            ...metricsRows.map(([metric, value, rating]) =>
+              new TableRow({
+                children: [
+                  cell(metric, { bold: true }),
+                  cell(value, { alignment: AlignmentType.CENTER }),
+                  cell(rating, {
+                    bold: true,
+                    alignment: AlignmentType.CENTER,
+                    shading: rating === "FAST" ? C.GREEN : rating === "AVERAGE" ? C.AMBER : rating === "SLOW" ? C.RED : undefined,
+                  }),
+                ],
+              })
+            ),
+          ],
+        })
+      );
+
+      // Audit items
+      const audits = (psi.audits ?? []) as Array<{
+        title: string;
+        group: string;
+        displayValue?: string;
+        savings_ms?: number;
+        savings_bytes?: number;
+        score?: number | null;
+      }>;
+
+      const opportunities = audits.filter((a) => a.group === "opportunity");
+      const diagnostics = audits.filter((a) => a.group === "diagnostic");
+
+      if (opportunities.length) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 120, after: 60 },
+            children: [run(`${label} — Opportunities (${opportunities.length})`, { bold: true, color: C.RED, size: 22 })],
+          })
+        );
+        for (const opp of opportunities) {
+          const savings = opp.savings_ms
+            ? `Est savings of ${formatPsiMs(opp.savings_ms)}`
+            : opp.savings_bytes
+              ? `Est savings of ${formatPsiBytes(opp.savings_bytes)}`
+              : opp.displayValue ?? "";
+          children.push(bulletItem(`${opp.title}${savings ? ` — ${savings}` : ""}`));
+        }
+      }
+
+      if (diagnostics.length) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 120, after: 60 },
+            children: [run(`${label} — Diagnostics (${diagnostics.length})`, { bold: true, color: C.AMBER, size: 22 })],
+          })
+        );
+        for (const diag of diagnostics) {
+          children.push(bulletItem(`${diag.title}${diag.displayValue ? ` — ${diag.displayValue}` : ""}`));
+        }
+      }
+    }
+  }
 
   // ── 1. Technical SEO ───────────────────────────────────────────
   children.push(sectionHeading("1. Technical SEO Review"));
@@ -715,6 +815,17 @@ export async function generateDocxReport(data: ReportData): Promise<Buffer> {
 }
 
 // ── Checks table helper ───────────────────────────────────────────
+
+function formatPsiMs(ms: number): string {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${Math.round(ms)} ms`;
+}
+
+function formatPsiBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KiB`;
+  return `${bytes} B`;
+}
 
 function checksTable(checks: ReportCheck[]): Table {
   return new Table({

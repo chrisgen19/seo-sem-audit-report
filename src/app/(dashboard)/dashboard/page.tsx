@@ -28,6 +28,7 @@ export default async function DashboardPage() {
               contentScore: true,
               semScore: true,
               createdAt: true,
+              meta: { select: { rawCrawlData: true } },
             },
           },
         },
@@ -136,21 +137,28 @@ export default async function DashboardPage() {
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center hidden md:grid">
-                        {[
-                          { label: "Tech", score: latest.technicalScore },
-                          { label: "Content", score: latest.contentScore },
-                          { label: "SEM", score: latest.semScore },
-                        ].map(({ label, score }) => (
-                          <div key={label}>
-                            <p className="text-xs text-gray-400">{label}</p>
-                            {score !== null ? (
-                              <ScoreBadge score={score!} />
-                            ) : (
-                              <span className="text-xs text-gray-300">—</span>
-                            )}
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-5 gap-2 text-center hidden md:grid">
+                        {(() => {
+                          const rawCrawl = latest.meta?.rawCrawlData as Record<string, unknown> | null;
+                          const psiMobile = (rawCrawl?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+                          const psiDesktop = (rawCrawl?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+                          return [
+                            { label: "Tech", score: latest.technicalScore },
+                            { label: "Content", score: latest.contentScore },
+                            { label: "SEM", score: latest.semScore },
+                            { label: "PSI M", score: psiMobile ?? null },
+                            { label: "PSI D", score: psiDesktop ?? null },
+                          ].map(({ label, score }) => (
+                            <div key={label}>
+                              <p className="text-xs text-gray-400">{label}</p>
+                              {score !== null ? (
+                                <ScoreBadge score={score!} />
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </>
                   ) : (

@@ -8,8 +8,9 @@ import { ChecksTable } from "@/components/audit/checks-table";
 import { QuickWinsTable } from "@/components/audit/quick-wins-table";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, Download } from "lucide-react";
-import type { QuickWin, AdGroup } from "@/types/audit";
+import type { QuickWin, AdGroup, PsiResult } from "@/types/audit";
 import type { AuditCheck } from "@prisma/client";
+import { PsiSection } from "@/components/audit/psi-section";
 
 export default async function AuditResultPage({
   params,
@@ -49,6 +50,7 @@ export default async function AuditResultPage({
       technicalScore: true,
       contentScore: true,
       semScore: true,
+      meta: { select: { rawCrawlData: true } },
     },
   });
 
@@ -65,6 +67,17 @@ export default async function AuditResultPage({
   const semStrengths = (meta?.semStrengths ?? []) as unknown as string[];
   const semIssues = (meta?.semIssues ?? []) as unknown as string[];
   const campaignRecs = (meta?.campaignRecs ?? []) as unknown as string[];
+
+  // Extract PSI data from raw crawl data
+  const rawCrawl = meta?.rawCrawlData as Record<string, unknown> | null;
+  const psiMobile = (rawCrawl?.psi ?? null) as PsiResult | null;
+  const psiDesktop = (rawCrawl?.psi_desktop ?? null) as PsiResult | null;
+  const psiError = (rawCrawl?.psi_error ?? null) as string | null;
+
+  // Previous run's PSI scores for delta comparison
+  const prevRawCrawl = prevRun?.meta?.rawCrawlData as Record<string, unknown> | null;
+  const prevPsiMobile = (prevRawCrawl?.psi ?? null) as PsiResult | null;
+  const prevPsiDesktop = (prevRawCrawl?.psi_desktop ?? null) as PsiResult | null;
 
   const projectId = auditRun.page.project.id;
   const pageId = auditRun.page.id;
@@ -105,13 +118,12 @@ export default async function AuditResultPage({
       />
 
       {/* Score cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <ScoreCard
           label="Overall"
           score={auditRun.overallScore ?? 0}
           grade={auditRun.overallGrade ?? "N/A"}
           previousScore={prevRun?.overallScore ?? undefined}
-          className="lg:col-span-1"
         />
         <ScoreCard
           label="Technical SEO"
@@ -131,6 +143,20 @@ export default async function AuditResultPage({
           grade={auditRun.semGrade ?? "N/A"}
           previousScore={prevRun?.semScore ?? undefined}
         />
+        {psiMobile && (
+          <ScoreCard
+            label="PageSpeed (Mobile)"
+            score={psiMobile.performance_score}
+            previousScore={prevPsiMobile?.performance_score}
+          />
+        )}
+        {psiDesktop && (
+          <ScoreCard
+            label="PageSpeed (Desktop)"
+            score={psiDesktop.performance_score}
+            previousScore={prevPsiDesktop?.performance_score}
+          />
+        )}
       </div>
 
       {/* Executive summary */}
@@ -153,6 +179,13 @@ export default async function AuditResultPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* PageSpeed Insights */}
+      {(psiMobile || psiDesktop || psiError) && (
+        <Section title="PageSpeed Insights (Core Web Vitals)">
+          <PsiSection mobile={psiMobile} desktop={psiDesktop} psiError={psiError} />
+        </Section>
       )}
 
       {/* Technical SEO */}

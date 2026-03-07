@@ -51,6 +51,48 @@ export interface AnalysisResult {
   quick_wins: QuickWin[];
 }
 
+export interface PsiDetailHeading {
+  key: string;
+  label: string;
+  valueType?: string;   // "url" | "bytes" | "ms" | "text" | "numeric" | "thumbnail" etc.
+}
+
+export interface PsiDetailItem {
+  [key: string]: unknown;
+}
+
+export interface PsiAuditItem {
+  id: string;
+  title: string;
+  description?: string;
+  score: number | null;
+  group: "opportunity" | "diagnostic" | "passed";
+  displayValue?: string;
+  savings_ms?: number;
+  savings_bytes?: number;
+  details?: {
+    headings: PsiDetailHeading[];
+    items: PsiDetailItem[];
+  };
+}
+
+export interface PsiResult {
+  performance_score: number;       // 0–100
+  fcp: number;                     // First Contentful Paint (ms)
+  lcp: number;                     // Largest Contentful Paint (ms)
+  cls: number;                     // Cumulative Layout Shift
+  tbt: number;                     // Total Blocking Time (ms)
+  si: number;                      // Speed Index (ms)
+  ttfb: number;                    // Time to First Byte (ms)
+  fcp_rating: string;              // FAST / AVERAGE / SLOW
+  lcp_rating: string;
+  cls_rating: string;
+  tbt_rating: string;
+  si_rating: string;
+  strategy: string;                // mobile or desktop
+  audits: PsiAuditItem[];
+}
+
 export interface CrawlData {
   // Page basics
   status_code?: number;
@@ -187,20 +229,8 @@ export interface CrawlData {
   hreflang_tags?: Array<{ lang: string; href: string }>;
 
   // PageSpeed Insights (Core Web Vitals)
-  psi?: {
-    performance_score: number;       // 0–100
-    fcp: number;                     // First Contentful Paint (ms)
-    lcp: number;                     // Largest Contentful Paint (ms)
-    cls: number;                     // Cumulative Layout Shift
-    tbt: number;                     // Total Blocking Time (ms)
-    si: number;                      // Speed Index (ms)
-    ttfb: number;                    // Time to First Byte (ms)
-    fcp_rating: string;              // FAST / AVERAGE / SLOW
-    lcp_rating: string;
-    cls_rating: string;
-    tbt_rating: string;
-    strategy: string;                // mobile or desktop
-  };
+  psi?: PsiResult;                   // mobile strategy
+  psi_desktop?: PsiResult;           // desktop strategy
   psi_error?: string;
 
   // Conversion/analytics tracking
