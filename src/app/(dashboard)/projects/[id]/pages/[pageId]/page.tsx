@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCachedPage } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -16,32 +16,7 @@ export default async function PageDetailPage({
   const session = await auth();
   const { id, pageId } = await params;
 
-  const page = await db.page.findFirst({
-    where: { id: pageId, projectId: id, project: { organizationId: session!.user.organizationId! } },
-    include: {
-      project: { select: { id: true, name: true } },
-      auditRuns: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          status: true,
-          provider: true,
-          overallScore: true,
-          overallGrade: true,
-          technicalScore: true,
-          technicalGrade: true,
-          contentScore: true,
-          contentGrade: true,
-          semScore: true,
-          semGrade: true,
-          createdAt: true,
-          completedAt: true,
-          errorMessage: true,
-          meta: { select: { rawCrawlData: true } },
-        },
-      },
-    },
-  });
+  const page = await getCachedPage(pageId, id, session!.user.organizationId!);
 
   if (!page) notFound();
 

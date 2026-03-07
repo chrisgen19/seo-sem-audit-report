@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCachedProject } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -16,32 +16,7 @@ export default async function ProjectPage({
   const session = await auth();
   const { id } = await params;
 
-  const project = await db.project.findFirst({
-    where: { id, organizationId: session!.user.organizationId! },
-    include: {
-      pages: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          auditRuns: {
-            where: { status: "done" },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              overallScore: true,
-              overallGrade: true,
-              technicalScore: true,
-              contentScore: true,
-              semScore: true,
-              createdAt: true,
-              meta: { select: { rawCrawlData: true } },
-            },
-          },
-          _count: { select: { auditRuns: true } },
-        },
-      },
-    },
-  });
+  const project = await getCachedProject(id, session!.user.organizationId!);
 
   if (!project) notFound();
 

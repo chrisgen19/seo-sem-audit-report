@@ -1,5 +1,6 @@
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateProject } from "@/lib/cache";
 import { normalizeUrl } from "@/lib/utils";
 import { z } from "zod";
 
@@ -75,6 +76,8 @@ export async function POST(
       url: normalizeUrl(parsed.data.url),
     },
   });
+
+  revalidateProject(id);
 
   return Response.json(page, { status: 201 });
 }

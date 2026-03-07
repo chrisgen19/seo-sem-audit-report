@@ -1,5 +1,6 @@
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateProjects } from "@/lib/cache";
 import { z } from "zod";
 
 const schema = z.object({ ids: z.array(z.string()).min(1) });
@@ -20,6 +21,8 @@ export async function DELETE(req: Request) {
       page: { project: { organizationId: ctx.organizationId } },
     },
   });
+
+  revalidateProjects();
 
   return new Response(null, { status: 204 });
 }

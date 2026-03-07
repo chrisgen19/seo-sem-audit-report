@@ -1,5 +1,6 @@
 import { getOrgContext, isAdmin } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateProjects } from "@/lib/cache";
 import { normalizeUrl } from "@/lib/utils";
 import { z } from "zod";
 
@@ -64,6 +65,8 @@ export async function POST(req: Request) {
       domain: normalizeUrl(parsed.data.domain),
     },
   });
+
+  revalidateProjects();
 
   return Response.json(project, { status: 201 });
 }

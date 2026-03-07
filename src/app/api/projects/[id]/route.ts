@@ -1,5 +1,6 @@
 import { getOrgContext, isAdmin } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateProject } from "@/lib/cache";
 
 export async function GET(
   _req: Request,
@@ -60,5 +61,8 @@ export async function DELETE(
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
 
   await db.project.delete({ where: { id } });
+
+  revalidateProject(id);
+
   return new Response(null, { status: 204 });
 }

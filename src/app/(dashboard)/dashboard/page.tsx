@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCachedDashboardData } from "@/lib/cache";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
@@ -10,48 +10,7 @@ export default async function DashboardPage() {
   const session = await auth();
   const orgId = session!.user.organizationId!;
 
-  const [projects, recentAudits] = await Promise.all([
-    db.project.findMany({
-      where: { organizationId: orgId },
-      select: {
-        _count: { select: { pages: true } },
-        pages: {
-          select: {
-            auditRuns: {
-              where: { status: "done" },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { overallScore: true },
-            },
-          },
-        },
-      },
-    }),
-    db.auditRun.findMany({
-      where: {
-        status: "done",
-        page: { project: { organizationId: orgId } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: {
-        id: true,
-        overallScore: true,
-        technicalScore: true,
-        contentScore: true,
-        semScore: true,
-        createdAt: true,
-        provider: true,
-        page: {
-          select: {
-            id: true,
-            name: true,
-            project: { select: { id: true, name: true } },
-          },
-        },
-      },
-    }),
-  ]);
+  const { projects, recentAudits } = await getCachedDashboardData(orgId);
 
   const totalPages = projects.reduce((sum, p) => sum + p._count.pages, 0);
   const allLatestScores = projects

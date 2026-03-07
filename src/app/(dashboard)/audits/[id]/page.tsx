@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCachedAuditRun } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ScoreCard } from "@/components/audit/score-card";
@@ -31,54 +31,11 @@ export default async function AuditResultPage({
   const session = await auth();
   const { id } = await params;
 
-  const auditRun = await db.auditRun.findFirst({
-    where: { id, page: { project: { organizationId: session!.user.organizationId! } } },
-    include: {
-      page: {
-        select: {
-          id: true,
-          name: true,
-          project: { select: { id: true, name: true } },
-        },
-      },
-      checks: { orderBy: [{ section: "asc" }, { name: "asc" }] },
-      meta: true,
-    },
-  });
+  const data = await getCachedAuditRun(id, session!.user.organizationId!);
 
-  if (!auditRun) notFound();
+  if (!data) notFound();
 
-  // Get previous run for delta comparison
-  const prevRun = await db.auditRun.findFirst({
-    where: {
-      pageId: auditRun.pageId,
-      status: "done",
-      createdAt: { lt: auditRun.createdAt },
-    },
-    orderBy: { createdAt: "desc" },
-    select: {
-      overallScore: true,
-      technicalScore: true,
-      contentScore: true,
-      semScore: true,
-      meta: { select: { rawCrawlData: true } },
-    },
-  });
-
-  // Fetch all done runs for score trend chart
-  const allDoneRuns = await db.auditRun.findMany({
-    where: { pageId: auditRun.pageId, status: "done" },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      createdAt: true,
-      overallScore: true,
-      technicalScore: true,
-      contentScore: true,
-      semScore: true,
-      meta: { select: { rawCrawlData: true } },
-    },
-  });
+  const { auditRun, prevRun, allDoneRuns } = data;
 
   const trendRuns = allDoneRuns.map((r) => {
     const raw = r.meta?.rawCrawlData as Record<string, unknown> | null;

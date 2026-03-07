@@ -1,5 +1,6 @@
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateAudit } from "@/lib/cache";
 
 export async function GET(
   _req: Request,
@@ -44,9 +45,13 @@ export async function DELETE(
 
   const auditRun = await db.auditRun.findFirst({
     where: { id, page: { project: { organizationId: ctx.organizationId } } },
+    include: { page: { select: { id: true, projectId: true } } },
   });
   if (!auditRun) return Response.json({ error: "Not found" }, { status: 404 });
 
   await db.auditRun.delete({ where: { id } });
+
+  revalidateAudit(id, auditRun.page.id, auditRun.page.projectId);
+
   return new Response(null, { status: 204 });
 }

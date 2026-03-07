@@ -1,5 +1,6 @@
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidatePage } from "@/lib/cache";
 
 export async function GET(
   _req: Request,
@@ -63,5 +64,8 @@ export async function DELETE(
   if (!page) return Response.json({ error: "Not found" }, { status: 404 });
 
   await db.page.delete({ where: { id: pageId } });
+
+  revalidatePage(pageId, id);
+
   return new Response(null, { status: 204 });
 }

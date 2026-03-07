@@ -1,5 +1,6 @@
 import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
+import { revalidateAudit } from "@/lib/cache";
 import { Prisma } from "@prisma/client";
 import { decrypt } from "@/lib/encrypt";
 import { SEOCrawler } from "@/lib/crawler";
@@ -227,6 +228,8 @@ export async function POST(req: Request) {
         // Step 4: Save
         send({ step: "saving", message: "Saving results to database..." });
         await saveAuditToDb(auditRun.id, enriched, crawlData as Record<string, unknown>);
+
+        revalidateAudit(auditRun.id, pageId, page.project.id);
 
         send({ step: "done", auditId: auditRun.id });
       } catch (err) {

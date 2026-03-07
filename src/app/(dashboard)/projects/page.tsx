@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getCachedProjects } from "@/lib/cache";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
@@ -9,32 +9,7 @@ import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
 export default async function ProjectsPage() {
   const session = await auth();
 
-  const projects = await db.project.findMany({
-    where: { organizationId: session!.user.organizationId! },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      _count: { select: { pages: true } },
-      pages: {
-        include: {
-          auditRuns: {
-            where: { status: "done" },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              overallScore: true,
-              overallGrade: true,
-              technicalScore: true,
-              contentScore: true,
-              semScore: true,
-              createdAt: true,
-              meta: { select: { rawCrawlData: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  const projects = await getCachedProjects(session!.user.organizationId!);
 
   return (
     <div>
