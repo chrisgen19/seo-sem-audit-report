@@ -50,6 +50,7 @@ export default async function AuditResultPage({
       technicalScore: true,
       contentScore: true,
       semScore: true,
+      meta: { select: { rawCrawlData: true } },
     },
   });
 
@@ -72,6 +73,11 @@ export default async function AuditResultPage({
   const psiMobile = (rawCrawl?.psi ?? null) as PsiResult | null;
   const psiDesktop = (rawCrawl?.psi_desktop ?? null) as PsiResult | null;
   const psiError = (rawCrawl?.psi_error ?? null) as string | null;
+
+  // Previous run's PSI scores for delta comparison
+  const prevRawCrawl = prevRun?.meta?.rawCrawlData as Record<string, unknown> | null;
+  const prevPsiMobile = (prevRawCrawl?.psi ?? null) as PsiResult | null;
+  const prevPsiDesktop = (prevRawCrawl?.psi_desktop ?? null) as PsiResult | null;
 
   const projectId = auditRun.page.project.id;
   const pageId = auditRun.page.id;
@@ -112,13 +118,12 @@ export default async function AuditResultPage({
       />
 
       {/* Score cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <ScoreCard
           label="Overall"
           score={auditRun.overallScore ?? 0}
           grade={auditRun.overallGrade ?? "N/A"}
           previousScore={prevRun?.overallScore ?? undefined}
-          className="lg:col-span-1"
         />
         <ScoreCard
           label="Technical SEO"
@@ -138,6 +143,20 @@ export default async function AuditResultPage({
           grade={auditRun.semGrade ?? "N/A"}
           previousScore={prevRun?.semScore ?? undefined}
         />
+        {psiMobile && (
+          <ScoreCard
+            label="PageSpeed (Mobile)"
+            score={psiMobile.performance_score}
+            previousScore={prevPsiMobile?.performance_score}
+          />
+        )}
+        {psiDesktop && (
+          <ScoreCard
+            label="PageSpeed (Desktop)"
+            score={psiDesktop.performance_score}
+            previousScore={prevPsiDesktop?.performance_score}
+          />
+        )}
       </div>
 
       {/* Executive summary */}
