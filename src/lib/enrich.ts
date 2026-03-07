@@ -20,7 +20,7 @@ export function enrichFindings(
     if (!imgs.length) return null;
     return formatList(
       `Images without lazy loading (${imgs.length} of ${crawl.image_count ?? crawl.images?.length ?? 0})`,
-      imgs.map((i) => describeImage(i))
+      imgs.map((i) => extractFilename(i.src) + (i.format !== "unknown" ? ` (${i.format})` : ""))
     );
   });
 
