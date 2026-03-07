@@ -72,25 +72,43 @@ export function enrichFindings(
   });
 
   appendTo(techMap, "Lazy Loading", () => {
-    const imgs = (crawl.images ?? []).filter((i) => !i.has_lazy_loading);
-    if (!imgs.length) return null;
+    const allImgs = crawl.images ?? [];
+    if (!allImgs.length) return "\n\nNo images found on the page.";
+    const missing = allImgs.filter((i) => !i.has_lazy_loading);
+    if (!missing.length) return `\n\nAll ${allImgs.length} images have lazy loading attributes.`;
     return formatList(
-      `Images without lazy loading (${imgs.length} of ${crawl.image_count ?? crawl.images?.length ?? 0})`,
-      imgs.map((i) => describeImage(i))
+      `Images without lazy loading (${missing.length} of ${allImgs.length})`,
+      missing.map((i) => describeImage(i))
     );
   });
 
   appendTo(techMap, "Image Optimization", () => {
-    const issues: string[] = [];
     const imgs = crawl.images ?? [];
+    if (!imgs.length) return "\n\nNo images found on the page.";
     const noDims = imgs.filter((i) => !i.has_dimensions);
+    const noAlt = imgs.filter((i) => !i.has_alt);
+    const noLazy = imgs.filter((i) => !i.has_lazy_loading);
     const placeholders = imgs.filter((i) => i.is_placeholder);
     const unknown = imgs.filter((i) => i.format === "unknown" && !i.is_placeholder);
-    if (noDims.length) issues.push(...noDims.map((i) => `${describeImage(i)} — missing width/height`));
-    if (placeholders.length) issues.push(...placeholders.map((i) => `${describeImage(i)} — placeholder/base64`));
-    if (unknown.length) issues.push(...unknown.map((i) => `${describeImage(i)} — unknown format`));
-    if (!issues.length) return null;
-    return formatList("Image issues detected", issues);
+    const lines: string[] = [];
+    lines.push(`Total images: ${imgs.length}`);
+    if (noDims.length) lines.push(`Missing width/height: ${noDims.length}`);
+    if (noAlt.length) lines.push(`Missing alt text: ${noAlt.length}`);
+    if (noLazy.length) lines.push(`Missing lazy loading: ${noLazy.length}`);
+    if (placeholders.length) lines.push(`Placeholder/base64: ${placeholders.length}`);
+    if (unknown.length) lines.push(`Unknown format: ${unknown.length}`);
+    if (!noDims.length && !noAlt.length && !noLazy.length && !placeholders.length && !unknown.length) {
+      lines.push("All images have proper dimensions, alt text, lazy loading, and known formats");
+    }
+    const details: string[] = [];
+    if (noDims.length) details.push(...noDims.map((i) => `${describeImage(i)} — missing width/height`));
+    if (noAlt.length) details.push(...noAlt.map((i) => `${extractFilename(i.src)} — missing alt text`));
+    if (noLazy.length) details.push(...noLazy.map((i) => `${describeImage(i)} — missing lazy loading`));
+    if (placeholders.length) details.push(...placeholders.map((i) => `${describeImage(i)} — placeholder/base64`));
+    if (unknown.length) details.push(...unknown.map((i) => `${describeImage(i)} — unknown format`));
+    let result = formatList(`Image optimization summary (${imgs.length} images)`, lines);
+    if (details.length) result += formatList("Affected images", details);
+    return result;
   });
 
   appendTo(techMap, "HTTP Security Headers", () => {
@@ -166,11 +184,13 @@ export function enrichFindings(
   });
 
   appendTo(contentMap, "Image Alt Text", () => {
-    const imgs = (crawl.images ?? []).filter((i) => !i.has_alt);
-    if (!imgs.length) return null;
+    const allImgs = crawl.images ?? [];
+    if (!allImgs.length) return "\n\nNo images found on the page.";
+    const missing = allImgs.filter((i) => !i.has_alt);
+    if (!missing.length) return `\n\nAll ${allImgs.length} images have alt text.`;
     return formatList(
-      `Images missing alt text (${imgs.length} of ${crawl.image_count ?? crawl.images?.length ?? 0})`,
-      imgs.map((i) => extractFilename(i.src) + (i.format !== "unknown" ? ` (${i.format})` : ""))
+      `Images missing alt text (${missing.length} of ${allImgs.length})`,
+      missing.map((i) => describeImage(i))
     );
   });
 
