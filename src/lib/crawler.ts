@@ -252,25 +252,35 @@ export class SEOCrawler {
 
     $("img").each((_, el) => {
       const rawSrc = $(el).attr("src") ?? "";
-      const realSrc =
-        $(el).attr("data-nitro-lazy-src") ??
-        $(el).attr("data-src") ??
-        $(el).attr("data-lazy-src") ??
-        $(el).attr("data-original") ??
-        $(el).attr("data-lazy") ??
-        (rawSrc.includes("base64") || rawSrc.includes("nitro-empty") ? "" : rawSrc);
 
-      const src = (realSrc || rawSrc).slice(0, 200);
-      const isPlaceholder = rawSrc.includes("base64") || rawSrc.includes("nitro-empty");
+      // Resolve real image URL from lazy-loading attributes (NitroPack, WP Rocket, etc.)
+      const lazySrcAttrs = [
+        "nitro-lazy-src", "data-nitro-lazy-src",
+        "data-src", "data-lazy-src", "data-original", "data-lazy",
+      ];
+      let realSrc = "";
+      for (const attr of lazySrcAttrs) {
+        const val = $(el).attr(attr);
+        if (val && !val.startsWith("data:")) { realSrc = val; break; }
+      }
+
+      // Also check srcset / nitro-lazy-srcset for the primary URL
+      if (!realSrc) {
+        const srcsetAttr = $(el).attr("nitro-lazy-srcset") ?? $(el).attr("data-srcset") ?? $(el).attr("srcset") ?? "";
+        const firstUrl = srcsetAttr.split(",")[0]?.trim().split(/\s+/)[0];
+        if (firstUrl && !firstUrl.startsWith("data:")) realSrc = firstUrl;
+      }
+
+      const isPlaceholder = !realSrc && (rawSrc.startsWith("data:") || rawSrc.includes("nitro-empty") || rawSrc === "");
+      const src = (realSrc || rawSrc).slice(0, 300);
       const alt = $(el).attr("alt") ?? "";
       const width = $(el).attr("width") ?? $(el).attr("data-width");
       const height = $(el).attr("height") ?? $(el).attr("data-height");
       const loading = $(el).attr("loading");
-      const isLazy =
-        loading === "lazy" ||
-        !!($(el).attr("data-src") || $(el).attr("data-nitro-lazy-src"));
+      const hasLazyAttr = lazySrcAttrs.some((attr) => !!$(el).attr(attr));
+      const isLazy = loading === "lazy" || hasLazyAttr;
 
-      const ext = src.split(".").pop()?.split("?")[0]?.toLowerCase() ?? "unknown";
+      const ext = src.split("/").pop()?.split("?")[0]?.split(".").pop()?.toLowerCase() ?? "unknown";
       const validExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "avif", "ico"];
 
       images.push({

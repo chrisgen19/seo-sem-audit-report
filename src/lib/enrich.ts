@@ -20,7 +20,7 @@ export function enrichFindings(
     if (!imgs.length) return null;
     return formatList(
       `Images without lazy loading (${imgs.length} of ${crawl.image_count ?? crawl.images?.length ?? 0})`,
-      imgs.map((i) => `${extractFilename(i.src)} (format: ${i.format})`)
+      imgs.map((i) => describeImage(i))
     );
   });
 
@@ -30,9 +30,9 @@ export function enrichFindings(
     const noDims = imgs.filter((i) => !i.has_dimensions);
     const placeholders = imgs.filter((i) => i.is_placeholder);
     const unknown = imgs.filter((i) => i.format === "unknown" && !i.is_placeholder);
-    if (noDims.length) issues.push(...noDims.map((i) => `${extractFilename(i.src)} — missing width/height`));
-    if (placeholders.length) issues.push(...placeholders.map((i) => `${extractFilename(i.src)} — placeholder/base64`));
-    if (unknown.length) issues.push(...unknown.map((i) => `${extractFilename(i.src)} — unknown format`));
+    if (noDims.length) issues.push(...noDims.map((i) => `${describeImage(i)} — missing width/height`));
+    if (placeholders.length) issues.push(...placeholders.map((i) => `${describeImage(i)} — placeholder/base64`));
+    if (unknown.length) issues.push(...unknown.map((i) => `${describeImage(i)} — unknown format`));
     if (!issues.length) return null;
     return formatList("Image issues detected", issues);
   });
@@ -108,7 +108,7 @@ export function enrichFindings(
     if (!imgs.length) return null;
     return formatList(
       `Images missing alt text (${imgs.length} of ${crawl.image_count ?? crawl.images?.length ?? 0})`,
-      imgs.map((i) => extractFilename(i.src))
+      imgs.map((i) => extractFilename(i.src) + (i.format !== "unknown" ? ` (${i.format})` : ""))
     );
   });
 
@@ -292,6 +292,14 @@ function extractFilename(src: string): string {
   } catch {
     return src.slice(0, 80);
   }
+}
+
+function describeImage(img: { src: string; alt: string; format: string; is_placeholder: boolean }): string {
+  const name = extractFilename(img.src);
+  const parts: string[] = [name];
+  if (img.alt) parts.push(`alt="${truncate(img.alt, 50)}"`);
+  if (img.format !== "unknown") parts.push(`(${img.format})`);
+  return parts.join(" ");
 }
 
 function truncate(text: string, max: number): string {
