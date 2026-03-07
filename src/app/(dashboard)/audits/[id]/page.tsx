@@ -9,6 +9,7 @@ import { QuickWinsTable } from "@/components/audit/quick-wins-table";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, Download } from "lucide-react";
 import type { QuickWin, AdGroup } from "@/types/audit";
+import type { AuditCheck } from "@prisma/client";
 
 export default async function AuditResultPage({
   params,
@@ -51,9 +52,9 @@ export default async function AuditResultPage({
     },
   });
 
-  const techChecks = auditRun.checks.filter((c) => c.section === "technical");
-  const contentChecks = auditRun.checks.filter((c) => c.section === "content");
-  const semChecks = auditRun.checks.filter((c) => c.section === "sem");
+  const techChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "technical");
+  const contentChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "content");
+  const semChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "sem");
 
   const meta = auditRun.meta;
   const quickWins = (meta?.quickWins ?? []) as unknown as QuickWin[];
