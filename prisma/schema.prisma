@@ -45,9 +45,7 @@ model User {
   email        String               @unique
   name         String?
   passwordHash String?
-  claudeApiKey String?              // AES-256-GCM encrypted
   geminiApiKey String?              // AES-256-GCM encrypted
-  claudeModel  String?
   geminiModel  String?
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt

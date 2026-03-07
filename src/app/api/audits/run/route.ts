@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { decrypt } from "@/lib/encrypt";
 import { SEOCrawler } from "@/lib/crawler";
-import { analyzeWithClaude, analyzeWithGemini } from "@/lib/analyzer";
+import { analyzeWithGemini } from "@/lib/analyzer";
 import { computeScores } from "@/lib/scoring";
 import { enrichFindings } from "@/lib/enrich";
 import type { AnalysisResult, AuditStreamEvent } from "@/types/audit";
@@ -13,7 +13,7 @@ export const maxDuration = 300;
 
 const bodySchema = z.object({
   pageId: z.string().min(1),
-  provider: z.enum(["claude", "gemini"]),
+  provider: z.enum(["gemini"]),
 });
 
 function sseEncoder() {
@@ -120,11 +120,11 @@ export async function POST(req: Request) {
 
   // Get and decrypt the current user's API key + model preference
   const user = await db.user.findUnique({ where: { id: ctx.userId } });
-  const rawKey = provider === "gemini" ? user?.geminiApiKey : user?.claudeApiKey;
-  const modelOverride = provider === "gemini" ? user?.geminiModel : user?.claudeModel;
+  const rawKey = user?.geminiApiKey;
+  const modelOverride = user?.geminiModel;
   if (!rawKey) {
     return Response.json(
-      { error: `No ${provider === "gemini" ? "Gemini" : "Claude"} API key set. Go to Settings to add one.` },
+      { error: "No Gemini API key set. Go to Settings to add one." },
       { status: 400 }
     );
   }
@@ -182,7 +182,7 @@ export async function POST(req: Request) {
         send({ step: "crawl_done", message: "Crawl complete." });
 
         // Step 2: AI Analysis
-        const modelLabel = modelOverride || (provider === "gemini" ? "Gemini" : "Claude");
+        const modelLabel = modelOverride || "Gemini";
         send({
           step: "analyze",
           message: `Sending to ${modelLabel} for analysis (this takes 30–60s)...`,
@@ -195,12 +195,7 @@ export async function POST(req: Request) {
           });
         };
 
-        let analysis: AnalysisResult;
-        if (provider === "gemini") {
-          analysis = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride, onRetry });
-        } else {
-          analysis = await analyzeWithClaude(crawlData, apiKey, { model: modelOverride, onRetry });
-        }
+        const analysis: AnalysisResult = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride, onRetry });
         send({ step: "analyze_done", message: "AI analysis complete." });
 
         // Step 3: Score

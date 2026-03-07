@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { CLAUDE_MODEL, GEMINI_MODEL, TECHNICAL_CHECKS, CONTENT_CHECKS, SEM_CHECKS } from "./constants";
+import { GEMINI_MODEL, TECHNICAL_CHECKS, CONTENT_CHECKS, SEM_CHECKS } from "./constants";
 
 export type AnalyzeOptions = {
   model?: string | null;
@@ -286,31 +285,6 @@ function buildPrompt(crawlData: CrawlData): string {
   return ANALYSIS_PROMPT
     .replace("{crawl_data}", JSON.stringify(summarized, null, 2))
     .replace("{checklist}", buildChecklistPrompt());
-}
-
-export async function analyzeWithClaude(
-  crawlData: CrawlData,
-  apiKey: string,
-  { model, onRetry }: AnalyzeOptions = {}
-): Promise<AnalysisResult> {
-  const client = new Anthropic({ apiKey });
-  const prompt = buildPrompt(crawlData);
-  const modelId = model || CLAUDE_MODEL;
-
-  return withRetry(async () => {
-    const message = await client.messages.create({
-      model: modelId,
-      max_tokens: 12000,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const text = message.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
-      .join("");
-
-    return parseJsonResponse(text);
-  }, `Claude/${modelId}`, onRetry);
 }
 
 export async function analyzeWithGemini(

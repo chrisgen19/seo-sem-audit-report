@@ -23,7 +23,7 @@ export type AuditRunRow = {
 
 type SortKey = "date-desc" | "date-asc" | "score-desc" | "score-asc";
 type StatusFilter = "all" | "done" | "failed" | "pending";
-type ProviderFilter = "all" | "claude" | "gemini";
+type ProviderFilter = "all" | "gemini";
 
 interface Props {
   runs: AuditRunRow[];
@@ -120,7 +120,6 @@ export function AuditHistoryTable({ runs }: Props) {
         >
           <option value="all">All providers</option>
           <option value="gemini">Gemini</option>
-          <option value="claude">Claude</option>
         </select>
 
         <select

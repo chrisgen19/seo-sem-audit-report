@@ -7,7 +7,7 @@ import type { AuditStreamEvent } from "@/types/audit";
 
 interface AuditProgressProps {
   pageId: string;
-  provider: "claude" | "gemini";
+  provider: "gemini";
   onCancel: () => void;
 }
 

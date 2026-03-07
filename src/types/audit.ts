@@ -1,6 +1,6 @@
 export type CheckStatus = "PASS" | "WARN" | "FAIL";
 export type AuditSection = "technical" | "content" | "sem";
-export type AuditProvider = "claude" | "gemini";
+export type AuditProvider = "gemini";
 export type AuditStatus = "pending" | "running" | "done" | "failed";
 
 export interface AuditCheckInput {

@@ -57,8 +57,5 @@ export const STATUS_VALUES: Record<string, number> = {
   FAIL: 0.0,
 };
 
-export const CLAUDE_MODEL =
-  process.env.CLAUDE_MODEL ?? "claude-sonnet-4-20250514";
-
 export const GEMINI_MODEL =
   process.env.GEMINI_MODEL ?? "gemini-2.5-pro-preview-03-25";

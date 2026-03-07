@@ -6,9 +6,7 @@ import { z } from "zod";
 
 const settingsSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  claudeApiKey: z.string().optional(),
   geminiApiKey: z.string().optional(),
-  claudeModel: z.string().max(100).optional(),
   geminiModel: z.string().max(100).optional(),
   currentPassword: z.string().optional(),
   newPassword: z.string().min(8).optional(),
@@ -24,9 +22,7 @@ export async function GET() {
       id: true,
       name: true,
       email: true,
-      claudeApiKey: true,
       geminiApiKey: true,
-      claudeModel: true,
       geminiModel: true,
     },
   });
@@ -35,8 +31,7 @@ export async function GET() {
 
   return Response.json({
     ...user,
-    // Return only whether keys are set, never the raw encrypted value
-    claudeApiKey: user.claudeApiKey ? "***set***" : null,
+    // Return only whether the key is set, never the raw encrypted value
     geminiApiKey: user.geminiApiKey ? "***set***" : null,
   });
 }
@@ -51,18 +46,14 @@ export async function PATCH(req: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, claudeApiKey, geminiApiKey, claudeModel, geminiModel, currentPassword, newPassword } = parsed.data;
+  const { name, geminiApiKey, geminiModel, currentPassword, newPassword } = parsed.data;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = {};
   if (name) updates.name = name;
-  if (claudeApiKey !== undefined) {
-    updates.claudeApiKey = claudeApiKey ? encrypt(claudeApiKey) : null;
-  }
   if (geminiApiKey !== undefined) {
     updates.geminiApiKey = geminiApiKey ? encrypt(geminiApiKey) : null;
   }
-  if (claudeModel !== undefined) updates.claudeModel = claudeModel || null;
   if (geminiModel !== undefined) updates.geminiModel = geminiModel || null;
 
   // Password change

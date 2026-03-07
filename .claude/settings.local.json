@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm type-check:*)",
+      "Bash(pnpm run:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(DIFF=/Users/chrisgen19/.claude-personal/projects/-Users-chrisgen19-projects-seo-sem-audit-report/3d2d30c3-42ba-4177-bf1b-3ef3036c1b08/tool-results/bja0zvxvc.txt)",
+      "Read(//Users/chrisgen19/projects/seo-sem-audit-report/**)",
+      "Bash(DIFF=/Users/chrisgen19/.claude-personal/projects/-Users-chrisgen19-projects-seo-sem-audit-report/3d2d30c3-42ba-4177-bf1b-3ef3036c1b08/tool-results/bw37661w2.txt)",
+      "Bash(git diff:*)",
+      "Bash(grep:*)",
+      "Bash(git:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm db:generate:*)",
+      "Bash(for id in a9c8b90f2806fffa0 aa1878cf9d94c1ca2 ae8615a77ff85bdb4 a6c195dd0f50795c0 ad835786c4fa2b53a)",
+      "Bash(do)",
+      "Bash(echo \"=== $id ===\")",
+      "Read(//private/tmp/claude-501/-Users-chrisgen19-projects-seo-sem-audit-report/tasks/**)",
+      "Bash(done)",
+      "Bash(do echo \"=== $id ===\" grep -o '\"\"type\"\":\"\"assistant\"\"' /private/tmp/claude-501/-Users-chrisgen19-projects-seo-sem-audit-report/tasks/$id.output)",
+      "Bash(do:*)",
+      "Bash(do echo:*)",
+      "Bash(sed:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}
