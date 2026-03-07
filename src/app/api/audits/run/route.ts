@@ -137,7 +137,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "Failed to decrypt API key." }, { status: 500 });
   }
 
-  // Prevent duplicate runs — if one is already running for this page, return it
+  // Auto-expire stale runs older than 5 minutes
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await db.auditRun.updateMany({
+    where: { pageId, status: "running", createdAt: { lt: fiveMinAgo } },
+    data: { status: "failed", errorMessage: "Timed out — run exceeded 5 minutes" },
+  });
+
+  // Prevent duplicate runs — if one is already running for this page, reject
   const existingRun = await db.auditRun.findFirst({
     where: { pageId, status: "running" },
     orderBy: { createdAt: "desc" },

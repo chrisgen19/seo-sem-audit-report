@@ -137,12 +137,98 @@ function parseJsonResponse(text: string): AnalysisResult {
 }
 
 function buildPrompt(crawlData: CrawlData): string {
-  const trimmed = { ...crawlData };
-  if (typeof trimmed.content_text === "string" && trimmed.content_text.length > 4000) {
-    trimmed.content_text = trimmed.content_text.slice(0, 4000) + "...[truncated]";
-  }
+  // Build a summarized version of crawl data for the AI prompt.
+  // The AI only needs enough to decide PASS/WARN/FAIL + write a summary.
+  // Detailed item lists are appended by enrich.ts after the AI responds.
+  const imgs = crawlData.images ?? [];
+  const summarized = {
+    // Page basics
+    status_code: crawlData.status_code,
+    final_url: crawlData.final_url,
+    response_time_ms: crawlData.response_time_ms,
+    content_length: crawlData.content_length,
+    is_https: crawlData.is_https,
+    has_mixed_content: crawlData.has_mixed_content,
+    mixed_content_count: crawlData.mixed_content?.length ?? 0,
+
+    // Meta
+    title: crawlData.title,
+    title_length: crawlData.title_length,
+    meta_description: crawlData.meta_description,
+    meta_description_length: crawlData.meta_description_length,
+    meta_robots: crawlData.meta_robots,
+    has_viewport: crawlData.has_viewport,
+    html_lang: crawlData.html_lang,
+    canonical_url: crawlData.canonical_url,
+    has_canonical: crawlData.has_canonical,
+
+    // Content (trimmed)
+    word_count: crawlData.word_count,
+    paragraph_count: crawlData.paragraph_count,
+    duplicate_paragraph_count: crawlData.duplicate_paragraphs?.length ?? 0,
+    headings: crawlData.headings,
+    content_text: typeof crawlData.content_text === "string" && crawlData.content_text.length > 3000
+      ? crawlData.content_text.slice(0, 3000) + "...[truncated]"
+      : crawlData.content_text,
+
+    // Links (counts + samples)
+    internal_link_count: crawlData.internal_link_count,
+    external_link_count: crawlData.external_link_count,
+    has_phone_link: crawlData.has_phone_link,
+    tel_links: crawlData.tel_links,
+
+    // Images (summary only — enrich.ts handles the item list)
+    image_count: crawlData.image_count,
+    images_missing_alt: imgs.filter((i) => !i.has_alt).length,
+    images_missing_lazy: imgs.filter((i) => !i.has_lazy_loading).length,
+    images_missing_dims: imgs.filter((i) => !i.has_dimensions).length,
+    images_placeholder: imgs.filter((i) => i.is_placeholder).length,
+
+    // Schema
+    schema_types: crawlData.schema_types,
+    has_schema: crawlData.has_schema,
+
+    // Forms (summary)
+    form_count: crawlData.form_count,
+
+    // Social tags (presence only)
+    has_og_tags: crawlData.has_og_tags,
+    has_twitter_tags: crawlData.has_twitter_tags,
+
+    // Robots & sitemap
+    robots_txt_status: crawlData.robots_txt_status,
+    robots_txt_has_sitemap: crawlData.robots_txt_has_sitemap,
+    sitemap_status: crawlData.sitemap_status,
+    sitemap_url_count: crawlData.sitemap_url_count,
+    sitemap_contains_target: crawlData.sitemap_contains_target,
+
+    // Security headers (summary)
+    security_headers_missing: crawlData.security_headers?.missing ?? [],
+
+    // CTAs (summary)
+    cta_count: crawlData.cta_elements?.length ?? 0,
+    cta_samples: (crawlData.cta_elements ?? []).slice(0, 5).map((c) => c.text),
+
+    // Trust signals
+    trust_signals: crawlData.trust_signals,
+
+    // Phone numbers in text
+    phone_numbers_in_text: crawlData.phone_numbers_in_text,
+
+    // FAQ
+    faq_count: crawlData.faq_elements?.length ?? 0,
+
+    // Conversion tracking
+    conversion_tracking: crawlData.conversion_tracking,
+
+    // Tech
+    tech_detected: crawlData.tech_detected,
+    external_script_count: crawlData.external_script_count,
+    external_style_count: crawlData.external_style_count,
+  };
+
   return ANALYSIS_PROMPT
-    .replace("{crawl_data}", JSON.stringify(trimmed, null, 2))
+    .replace("{crawl_data}", JSON.stringify(summarized, null, 2))
     .replace("{checklist}", buildChecklistPrompt());
 }
 
