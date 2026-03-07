@@ -5,31 +5,21 @@ import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { AuditProgress } from "@/components/audit/audit-progress";
 
-interface ApiKeyStatus {
-  geminiApiKey: string | null;
-}
-
 export default function RunAuditPage() {
   const { pageId } = useParams<{ id: string; pageId: string }>();
   const router = useRouter();
 
-  const provider = "gemini" as const;
-  const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((d: ApiKeyStatus) => {
-        setApiKeyStatus(d);
-        setLoading(false);
+      .then((d: { geminiApiKey: string | null }) => {
+        setHasKey(!!d.geminiApiKey);
       });
   }, []);
 
-  const hasSelectedKey = !!apiKeyStatus?.geminiApiKey;
-
-  if (loading) {
+  if (hasKey === null) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin h-8 w-8 border-4 border-brand-900 border-t-transparent rounded-full" />
@@ -37,55 +27,39 @@ export default function RunAuditPage() {
     );
   }
 
+  if (!hasKey) {
+    return (
+      <div className="max-w-lg">
+        <Header title="Run Audit" subtitle="Analyze your page with Gemini AI" />
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
+            No API key for Gemini.{" "}
+            <a href="/settings" className="underline font-medium">
+              Go to Settings
+            </a>{" "}
+            to add one.
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="w-full py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-lg">
-      <Header title="Run Audit" subtitle="Analyze your page with Gemini AI" />
+      <Header title="Running Audit" subtitle="Analyzing your page with Gemini AI" />
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        {!running ? (
-          <div className="space-y-6">
-            {/* Provider info */}
-            <div className="p-4 rounded-lg border-2 border-brand-700 bg-brand-50">
-              <p className="font-semibold text-gray-900">Gemini</p>
-              <p className="text-xs text-gray-400 mt-0.5">Google AI</p>
-              <p className={`text-xs mt-1 font-medium ${hasSelectedKey ? "text-green-600" : "text-red-500"}`}>
-                {hasSelectedKey ? "API key set" : "No key — set in Settings"}
-              </p>
-            </div>
-
-            {!hasSelectedKey && (
-              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
-                No API key for Gemini.{" "}
-                <a href="/settings" className="underline font-medium">
-                  Go to Settings
-                </a>{" "}
-                to add one.
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.back()}
-                className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setRunning(true)}
-                disabled={!hasSelectedKey}
-                className="flex-1 py-2.5 px-4 bg-brand-900 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
-              >
-                Start Audit
-              </button>
-            </div>
-          </div>
-        ) : (
-          <AuditProgress
-            pageId={pageId}
-            provider={provider}
-            onCancel={() => setRunning(false)}
-          />
-        )}
+        <AuditProgress
+          pageId={pageId}
+          provider="gemini"
+          onCancel={() => router.back()}
+        />
       </div>
     </div>
   );
