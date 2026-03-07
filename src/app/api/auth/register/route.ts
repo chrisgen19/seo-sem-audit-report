@@ -24,12 +24,65 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await db.user.create({
-      data: { name, email, passwordHash },
-      select: { id: true, email: true, name: true },
+
+    // Check if any organization exists — first user becomes ADMIN
+    const orgCount = await db.organization.count();
+    const isFirstUser = orgCount === 0;
+
+    const user = await db.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: { name, email, passwordHash },
+        select: { id: true, email: true, name: true },
+      });
+
+      if (isFirstUser) {
+        // Create the default organization and make this user ADMIN
+        const org = await tx.organization.create({
+          data: {
+            name: "My Organization",
+            slug: "default",
+          },
+        });
+
+        await tx.organizationMember.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "ADMIN",
+            status: "ACTIVE",
+          },
+        });
+      } else {
+        // Join the existing organization with PENDING status (admin must approve)
+        const org = await tx.organization.findFirst({
+          orderBy: { createdAt: "asc" },
+        });
+
+        if (org) {
+          await tx.organizationMember.create({
+            data: {
+              userId: newUser.id,
+              organizationId: org.id,
+              role: "MEMBER",
+              status: "PENDING",
+            },
+          });
+        }
+      }
+
+      return newUser;
     });
 
-    return Response.json(user, { status: 201 });
+    return Response.json(
+      {
+        ...user,
+        pending: !isFirstUser,
+        message: isFirstUser
+          ? "Account created. You are the organization admin."
+          : "Account created. An admin must approve your access before you can log in.",
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("[register]", error);
     return Response.json({ error: "Registration failed. Please try again." }, { status: 500 });

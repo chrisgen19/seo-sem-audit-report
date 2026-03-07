@@ -17,7 +17,7 @@ export default async function ProjectPage({
   const { id } = await params;
 
   const project = await db.project.findFirst({
-    where: { id, userId: session!.user.id },
+    where: { id, organizationId: session!.user.organizationId! },
     include: {
       pages: {
         orderBy: { createdAt: "asc" },

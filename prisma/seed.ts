@@ -18,10 +18,30 @@ async function main() {
 
   console.log("Created user:", user.email);
 
+  // Create default organization and make user admin
+  const org = await db.organization.upsert({
+    where: { slug: "default" },
+    update: {},
+    create: { name: "My Organization", slug: "default" },
+  });
+
+  await db.organizationMember.upsert({
+    where: { userId_organizationId: { userId: user.id, organizationId: org.id } },
+    update: {},
+    create: {
+      userId: user.id,
+      organizationId: org.id,
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+  });
+
+  console.log("Created organization:", org.name);
+
   // Create a project
   const project = await db.project.create({
     data: {
-      userId: user.id,
+      organizationId: org.id,
       name: "Example Site",
       domain: "https://example.com",
     },

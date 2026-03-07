@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 import { generateDocxReport } from "@/lib/report";
 import type {
@@ -11,15 +11,15 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const ctx = await getOrgContext();
+  if (!ctx) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const { id } = await params;
 
   const auditRun = await db.auditRun.findFirst({
-    where: { id, page: { project: { userId: session.user.id } } },
+    where: { id, page: { project: { organizationId: ctx.organizationId } } },
     include: {
       page: {
         select: {

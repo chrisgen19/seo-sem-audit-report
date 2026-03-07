@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { decrypt } from "@/lib/encrypt";
@@ -101,6 +102,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const ctx = await getOrgContext();
+  if (!ctx) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json();
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
@@ -109,16 +115,16 @@ export async function POST(req: Request) {
 
   const { pageId, provider } = parsed.data;
 
-  // Verify ownership via Page → Project → User
+  // Verify access via Page → Project → Organization
   const page = await db.page.findFirst({
-    where: { id: pageId, project: { userId: session.user.id } },
+    where: { id: pageId, project: { organizationId: ctx.organizationId } },
     include: { project: { select: { id: true, name: true } } },
   });
   if (!page) {
     return Response.json({ error: "Page not found" }, { status: 404 });
   }
 
-  // Get and decrypt API key + model preference
+  // Get and decrypt the current user's API key + model preference
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   const rawKey = provider === "gemini" ? user?.geminiApiKey : user?.claudeApiKey;
   const modelOverride = provider === "gemini" ? user?.geminiModel : user?.claudeModel;

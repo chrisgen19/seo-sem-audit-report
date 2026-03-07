@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org";
 import { db } from "@/lib/db";
 import { normalizeUrl } from "@/lib/utils";
 import { z } from "zod";
@@ -12,13 +12,13 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
   const project = await db.project.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, organizationId: ctx.organizationId },
   });
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -52,13 +52,13 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgContext();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
   const project = await db.project.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, organizationId: ctx.organizationId },
   });
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
 

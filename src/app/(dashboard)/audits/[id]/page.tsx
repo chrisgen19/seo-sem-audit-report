@@ -20,7 +20,7 @@ export default async function AuditResultPage({
   const { id } = await params;
 
   const auditRun = await db.auditRun.findFirst({
-    where: { id, page: { project: { userId: session!.user.id } } },
+    where: { id, page: { project: { organizationId: session!.user.organizationId! } } },
     include: {
       page: {
         select: {

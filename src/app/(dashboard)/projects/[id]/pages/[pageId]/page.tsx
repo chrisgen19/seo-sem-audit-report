@@ -18,7 +18,7 @@ export default async function PageDetailPage({
   const { id, pageId } = await params;
 
   const page = await db.page.findFirst({
-    where: { id: pageId, projectId: id, project: { userId: session!.user.id } },
+    where: { id: pageId, projectId: id, project: { organizationId: session!.user.organizationId! } },
     include: {
       project: { select: { id: true, name: true } },
       auditRuns: {
