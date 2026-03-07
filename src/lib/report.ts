@@ -231,6 +231,8 @@ export interface ReportData {
   quickWins: ReportQuickWin[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawCrawlData: Record<string, any> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevRawCrawlData?: Record<string, any> | null;
 }
 
 // ── Main generator ────────────────────────────────────────────────
@@ -311,10 +313,18 @@ export async function generateDocxReport(data: ReportData): Promise<Buffer> {
     data.prevOverallScore !== undefined &&
     data.prevOverallScore !== null;
 
+  // Extract PSI scores from raw crawl data
+  const psiMobileScore = (data.rawCrawlData?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const psiDesktopScore = (data.rawCrawlData?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const prevPsiMobileScore = (data.prevRawCrawlData?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+  const prevPsiDesktopScore = (data.prevRawCrawlData?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+
   const scoreRows = [
     ["Technical SEO", data.technicalScore, data.technicalGrade, deltaStr(data.technicalScore, data.prevTechnicalScore)],
     ["Content SEO", data.contentScore, data.contentGrade, deltaStr(data.contentScore, data.prevContentScore)],
     ["SEM / AdWords Readiness", data.semScore, data.semGrade, deltaStr(data.semScore, data.prevSemScore)],
+    ...(psiMobileScore !== undefined ? [["PageSpeed (Mobile)", psiMobileScore, null, deltaStr(psiMobileScore, prevPsiMobileScore ?? null)] as [string, number | null, string | null, string]] : []),
+    ...(psiDesktopScore !== undefined ? [["PageSpeed (Desktop)", psiDesktopScore, null, deltaStr(psiDesktopScore, prevPsiDesktopScore ?? null)] as [string, number | null, string | null, string]] : []),
   ] as [string, number | null, string | null, string][];
 
   const scoreTable = new Table({

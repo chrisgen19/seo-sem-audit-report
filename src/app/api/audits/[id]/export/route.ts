@@ -51,6 +51,7 @@ export async function GET(
       technicalScore: true,
       contentScore: true,
       semScore: true,
+      meta: { select: { rawCrawlData: true } },
     },
   });
 
@@ -98,6 +99,7 @@ export async function GET(
     adGroups: (meta?.adGroups ?? []) as unknown as ReportAdGroup[],
     quickWins: (meta?.quickWins ?? []) as unknown as ReportQuickWin[],
     rawCrawlData: meta?.rawCrawlData as Record<string, unknown> | null,
+    prevRawCrawlData: prevRun?.meta?.rawCrawlData as Record<string, unknown> | null,
   });
 
   const domain = new URL(auditRun.url).hostname

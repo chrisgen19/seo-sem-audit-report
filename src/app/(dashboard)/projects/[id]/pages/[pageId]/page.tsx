@@ -38,6 +38,7 @@ export default async function PageDetailPage({
           createdAt: true,
           completedAt: true,
           errorMessage: true,
+          meta: { select: { rawCrawlData: true } },
         },
       },
     },
@@ -47,6 +48,14 @@ export default async function PageDetailPage({
 
   const doneRuns = page.auditRuns.filter((r) => r.status === "done");
   const latestRun = [...doneRuns].reverse()[0];
+
+  // Extract PSI scores for chart and history
+  const doneRunsWithPsi = doneRuns.map((r) => {
+    const raw = r.meta?.rawCrawlData as Record<string, unknown> | null;
+    const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    return { ...r, psiMobile: psiM ?? null, psiDesktop: psiD ?? null };
+  });
 
   return (
     <div>
@@ -87,7 +96,7 @@ export default async function PageDetailPage({
               </span>
             )}
           </div>
-          <ScoreTrendChart runs={doneRuns} />
+          <ScoreTrendChart runs={doneRunsWithPsi} />
         </div>
       )}
 
@@ -111,7 +120,11 @@ export default async function PageDetailPage({
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {[...page.auditRuns].reverse().map((run) => (
+            {[...page.auditRuns].reverse().map((run) => {
+              const raw = run.meta?.rawCrawlData as Record<string, unknown> | null;
+              const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+              const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+              return (
               <div key={run.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{formatDateTime(run.createdAt)}</p>
@@ -121,12 +134,14 @@ export default async function PageDetailPage({
                 <div className="flex items-center gap-6">
                   {run.status === "done" ? (
                     <>
-                      <div className="grid grid-cols-4 gap-3 text-center">
+                      <div className="grid grid-cols-6 gap-3 text-center">
                         {[
                           { label: "Overall", score: run.overallScore },
                           { label: "Tech", score: run.technicalScore },
                           { label: "Content", score: run.contentScore },
                           { label: "SEM", score: run.semScore },
+                          { label: "PSI M", score: psiM ?? null },
+                          { label: "PSI D", score: psiD ?? null },
                         ].map(({ label, score }) => (
                           <div key={label} className="text-center">
                             <p className="text-xs text-gray-400">{label}</p>
@@ -155,7 +170,8 @@ export default async function PageDetailPage({
                   <DeleteAuditButton auditId={run.id} />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

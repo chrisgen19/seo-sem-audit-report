@@ -19,6 +19,8 @@ interface AuditRunSummary {
   technicalScore: number | null;
   contentScore: number | null;
   semScore: number | null;
+  psiMobile?: number | null;
+  psiDesktop?: number | null;
 }
 
 interface ScoreTrendChartProps {
@@ -42,7 +44,13 @@ export function ScoreTrendChart({ runs }: ScoreTrendChartProps) {
       Technical: r.technicalScore,
       Content: r.contentScore,
       SEM: r.semScore,
+      "PSI Mobile": r.psiMobile ?? undefined,
+      "PSI Desktop": r.psiDesktop ?? undefined,
     }));
+
+  // Only show PSI lines if at least one run has PSI data
+  const hasPsiMobile = data.some((d) => d["PSI Mobile"] !== undefined);
+  const hasPsiDesktop = data.some((d) => d["PSI Desktop"] !== undefined);
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -86,6 +94,28 @@ export function ScoreTrendChart({ runs }: ScoreTrendChartProps) {
           dot={{ r: 3 }}
           strokeDasharray="4 2"
         />
+        {hasPsiMobile && (
+          <Line
+            type="monotone"
+            dataKey="PSI Mobile"
+            stroke="#E74C3C"
+            strokeWidth={1.5}
+            dot={{ r: 3 }}
+            strokeDasharray="6 3"
+            connectNulls
+          />
+        )}
+        {hasPsiDesktop && (
+          <Line
+            type="monotone"
+            dataKey="PSI Desktop"
+            stroke="#9B59B6"
+            strokeWidth={1.5}
+            dot={{ r: 3 }}
+            strokeDasharray="6 3"
+            connectNulls
+          />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );
