@@ -70,6 +70,7 @@ export interface PsiAuditItem {
   displayValue?: string;
   savings_ms?: number;
   savings_bytes?: number;
+  guidance?: string;
   details?: {
     headings: PsiDetailHeading[];
     items: PsiDetailItem[];

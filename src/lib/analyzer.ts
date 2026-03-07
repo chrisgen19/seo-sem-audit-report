@@ -5,7 +5,7 @@ export type AnalyzeOptions = {
   model?: string | null;
   onRetry?: (attempt: number, maxRetries: number, delaySec: number) => void;
 };
-import type { AnalysisResult, CrawlData } from "@/types/audit";
+import type { AnalysisResult, CrawlData, PsiAuditItem } from "@/types/audit";
 
 function buildChecklistPrompt(): string {
   const techNames = TECHNICAL_CHECKS.map(([n]) => `      "${n}"`).join("\n");
@@ -301,4 +301,81 @@ export async function analyzeWithGemini(
     const result = await model.generateContent(prompt);
     return parseJsonResponse(result.response.text());
   }, `Gemini/${modelId}`, onRetry);
+}
+
+export async function generatePsiGuidance(
+  crawlData: CrawlData,
+  apiKey: string,
+  { model: modelOverride, onRetry }: AnalyzeOptions = {}
+): Promise<void> {
+  const allItems: PsiAuditItem[] = [];
+  if (crawlData.psi) {
+    allItems.push(...crawlData.psi.audits.filter((a) => a.group !== "passed"));
+  }
+  if (crawlData.psi_desktop) {
+    // Only add desktop items that aren't already covered by mobile
+    const mobileIds = new Set(allItems.map((a) => a.id));
+    allItems.push(
+      ...crawlData.psi_desktop.audits.filter(
+        (a) => a.group !== "passed" && !mobileIds.has(a.id)
+      )
+    );
+  }
+
+  if (allItems.length === 0) return;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelId = modelOverride || GEMINI_MODEL;
+  const model = genAI.getGenerativeModel({ model: modelId });
+
+  const itemSummaries = allItems.map((item) => {
+    const scoreLabel =
+      item.score == null ? "failed (no score)"
+      : item.score >= 0.9 ? "passed"
+      : item.score >= 0.5 ? "needs improvement"
+      : "failing";
+    const plainDesc = item.description
+      ? item.description.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      : "";
+    return `- ID: "${item.id}" | Title: "${item.title}" | Status: ${scoreLabel}${plainDesc ? ` | Description: ${plainDesc}` : ""}${item.displayValue ? ` | Value: ${item.displayValue}` : ""}`;
+  }).join("\n");
+
+  const prompt = `You are a web performance and SEO expert. A Google Lighthouse audit flagged these issues on a website. For EACH audit item below, provide practical guidance.
+
+AUDIT ITEMS:
+${itemSummaries}
+
+For each item, provide:
+1. What this audit checks and why it matters (1 sentence)
+2. How to fix it — specific, actionable steps
+3. Expected impact if fixed
+
+Respond ONLY with a valid JSON object mapping each audit ID to its guidance text (plain text, no markdown). Keep each guidance under 150 words. Example format:
+{
+  "audit-id-1": "This audit checks... To fix this... Impact: ...",
+  "audit-id-2": "..."
+}`;
+
+  const guidanceMap = await withRetry(async () => {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim()
+      .replace(/^```json\s*/i, "")
+      .replace(/\s*```$/, "");
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON in PSI guidance response");
+    return JSON.parse(text.slice(start, end + 1)) as Record<string, string>;
+  }, `Gemini/${modelId} PSI guidance`, onRetry);
+
+  // Apply guidance to both mobile and desktop audit items
+  function applyGuidance(items: PsiAuditItem[]) {
+    for (const item of items) {
+      if (item.group !== "passed" && guidanceMap[item.id]) {
+        item.guidance = guidanceMap[item.id];
+      }
+    }
+  }
+
+  if (crawlData.psi) applyGuidance(crawlData.psi.audits);
+  if (crawlData.psi_desktop) applyGuidance(crawlData.psi_desktop.audits);
 }

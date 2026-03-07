@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { Globe, ChevronRight, BarChart2, FileText, Clock } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
                     </Link>
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {formatDate(audit.createdAt)} · {audit.provider}
+                    {formatDateTime(audit.createdAt)} · {audit.provider}
                   </p>
                 </div>
 

@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import type { PsiResult, PsiAuditItem, PsiDetailHeading, PsiDetailItem } from "@/types/audit";
-import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { PSI_AUDIT_RESOURCES } from "@/lib/psi-resources";
 
 interface PsiSectionProps {
   mobile?: PsiResult | null;
@@ -196,35 +197,9 @@ function AuditGroup({
 
 function AuditItemRow({ item }: { item: PsiAuditItem }) {
   const hasDetails = !!(item.details && item.details.items.length > 0);
-  const hasContent = hasDetails || !!item.description;
+  const hasResources = !!PSI_AUDIT_RESOURCES[item.id]?.length;
+  const hasContent = hasDetails || !!item.description || !!item.guidance || hasResources;
   const [expanded, setExpanded] = useState(false);
-  const [guidance, setGuidance] = useState<string | null>(null);
-  const [guidanceError, setGuidanceError] = useState<string | null>(null);
-  const [loadingGuidance, setLoadingGuidance] = useState(false);
-
-  async function fetchGuidance() {
-    setLoadingGuidance(true);
-    setGuidanceError(null);
-    try {
-      const res = await fetch("/api/psi/guidance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          auditId: item.id,
-          title: item.title,
-          description: item.description,
-          score: item.score,
-        }),
-      });
-      const data = await res.json();
-      if (data.guidance) setGuidance(data.guidance);
-      else setGuidanceError(data.error ?? "Could not load AI guidance.");
-    } catch {
-      setGuidanceError("Could not load AI guidance.");
-    } finally {
-      setLoadingGuidance(false);
-    }
-  }
 
   return (
     <div>
@@ -276,36 +251,46 @@ function AuditItemRow({ item }: { item: PsiAuditItem }) {
             />
           )}
 
-          {/* AI Guidance — only for non-passed items */}
-          {item.group !== "passed" && (
-            <div>
-              {!guidance && !guidanceError && (
-                <button
-                  onClick={fetchGuidance}
-                  disabled={loadingGuidance}
-                  className="flex items-center gap-1.5 text-xs text-brand-700 hover:text-brand-900 font-medium disabled:opacity-50 transition-colors"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  {loadingGuidance ? "Getting AI guidance…" : "Get AI guidance"}
-                </button>
-              )}
-              {guidanceError && (
-                <p className="text-xs text-red-500">{guidanceError}</p>
-              )}
-              {guidance && (
-                <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-brand-800 mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3" /> AI Guidance
-                  </p>
-                  <p className="text-xs text-brand-900 whitespace-pre-line leading-relaxed">
-                    {guidance}
-                  </p>
-                </div>
-              )}
+          {item.guidance && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Recommendation
+              </span>
+              <p className="mt-1 text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+                {item.guidance}
+              </p>
             </div>
           )}
+
+          <PsiResourceLinks auditId={item.id} />
         </div>
       )}
+    </div>
+  );
+}
+
+function PsiResourceLinks({ auditId }: { auditId: string }) {
+  const resources = PSI_AUDIT_RESOURCES[auditId];
+  if (!resources?.length) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-200">
+      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+        Helpful Resources
+      </span>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {resources.map((r) => (
+          <a
+            key={r.url}
+            href={r.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            {r.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

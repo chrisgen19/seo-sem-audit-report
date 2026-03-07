@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { decrypt } from "@/lib/encrypt";
 import { SEOCrawler } from "@/lib/crawler";
-import { analyzeWithGemini } from "@/lib/analyzer";
+import { analyzeWithGemini, generatePsiGuidance } from "@/lib/analyzer";
 import { computeScores } from "@/lib/scoring";
 import { enrichFindings } from "@/lib/enrich";
 import type { AnalysisResult, AuditStreamEvent } from "@/types/audit";
@@ -143,9 +143,16 @@ export async function POST(req: Request) {
     data: { status: "failed", errorMessage: "Timed out — run exceeded 5 minutes" },
   });
 
-  // Prevent duplicate runs — if one is already running for this page, reject
+  // Prevent duplicate runs — if one is already running OR was created in the last 10s, reject
+  const tenSecsAgo = new Date(Date.now() - 10_000);
   const existingRun = await db.auditRun.findFirst({
-    where: { pageId, status: "running" },
+    where: {
+      pageId,
+      OR: [
+        { status: "running" },
+        { status: "done", createdAt: { gte: tenSecsAgo } },
+      ],
+    },
     orderBy: { createdAt: "desc" },
   });
   if (existingRun) {
@@ -197,6 +204,18 @@ export async function POST(req: Request) {
 
         const analysis: AnalysisResult = await analyzeWithGemini(crawlData, apiKey, { model: modelOverride, onRetry });
         send({ step: "analyze_done", message: "AI analysis complete." });
+
+        // Step 2b: Generate PSI guidance (if PSI data available)
+        if (crawlData.psi || crawlData.psi_desktop) {
+          send({ step: "analyze", message: "Generating PageSpeed Insights guidance..." });
+          try {
+            await generatePsiGuidance(crawlData, apiKey, { model: modelOverride, onRetry });
+            send({ step: "analyze_done", message: "PSI guidance generated." });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            send({ step: "analyze", message: `PSI guidance skipped: ${msg}` });
+          }
+        }
 
         // Step 3: Score
         send({ step: "scoring", message: "Computing scores from fixed rubric..." });
