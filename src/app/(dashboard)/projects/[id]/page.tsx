@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
 import { formatDate } from "@/lib/utils";
 import { Plus, ExternalLink, ChevronRight, FileText } from "lucide-react";
+import { DeletePageButton } from "@/components/delete-page-button";
 
 export default async function ProjectPage({
   params,
@@ -83,56 +84,65 @@ export default async function ProjectPage({
             {project.pages.map((page) => {
               const latest = page.auditRuns[0];
               return (
-                <Link
+                <div
                   key={page.id}
-                  href={`/projects/${project.id}/pages/${page.id}`}
                   className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors group"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900">{page.name}</p>
-                    <p className="text-sm text-gray-400 mt-0.5">{page.url}</p>
-                  </div>
+                  <Link
+                    href={`/projects/${project.id}/pages/${page.id}`}
+                    className="flex-1 flex items-center justify-between min-w-0"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{page.name}</p>
+                      <p className="text-sm text-gray-400 mt-0.5">{page.url}</p>
+                    </div>
 
-                  <div className="flex items-center gap-6">
-                    {latest ? (
-                      <>
-                        <div className="text-right hidden sm:block">
-                          <p className="text-xs text-gray-400">Last audit</p>
-                          <p className="text-sm text-gray-600">{formatDate(latest.createdAt)}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-gray-400 mb-1">Score</p>
-                          {latest.overallScore !== null ? (
-                            <ScoreBadge score={latest.overallScore!} />
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center hidden md:grid">
-                          {[
-                            { label: "Tech", score: latest.technicalScore },
-                            { label: "Content", score: latest.contentScore },
-                            { label: "SEM", score: latest.semScore },
-                          ].map(({ label, score }) => (
-                            <div key={label}>
-                              <p className="text-xs text-gray-400">{label}</p>
-                              {score !== null ? (
-                                <ScoreBadge score={score!} />
-                              ) : (
-                                <span className="text-xs text-gray-300">—</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-sm text-gray-400">
-                        {page._count.auditRuns > 0 ? "No completed audits" : "Never audited"}
-                      </span>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
-                  </div>
-                </Link>
+                    <div className="flex items-center gap-6">
+                      {latest ? (
+                        <>
+                          <div className="text-right hidden sm:block">
+                            <p className="text-xs text-gray-400">Last audit</p>
+                            <p className="text-sm text-gray-600">{formatDate(latest.createdAt)}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-1">Score</p>
+                            {latest.overallScore !== null ? (
+                              <ScoreBadge score={latest.overallScore!} />
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center hidden md:grid">
+                            {[
+                              { label: "Tech", score: latest.technicalScore },
+                              { label: "Content", score: latest.contentScore },
+                              { label: "SEM", score: latest.semScore },
+                            ].map(({ label, score }) => (
+                              <div key={label}>
+                                <p className="text-xs text-gray-400">{label}</p>
+                                {score !== null ? (
+                                  <ScoreBadge score={score!} />
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400">
+                          {page._count.auditRuns > 0 ? "No completed audits" : "Never audited"}
+                        </span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                    </div>
+                  </Link>
+                  <DeletePageButton
+                    projectId={project.id}
+                    pageId={page.id}
+                    pageName={page.name}
+                  />
+                </div>
               );
             })}
           </div>

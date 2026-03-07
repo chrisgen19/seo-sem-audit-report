@@ -4,7 +4,6 @@ import {
   Document,
   HeadingLevel,
   Packer,
-  PageBreak,
   Paragraph,
   ShadingType,
   Table,
@@ -155,6 +154,23 @@ function bulletItem(text: string, num?: number): Paragraph {
       run(text, { size: 20 }),
     ],
   });
+}
+
+/**
+ * Extracts the summary sentence from a detailed finding.
+ * Strips bullet-point item lists that follow — those are for the web UI only.
+ */
+function summarizeFinding(finding: string, maxLen = 250): string {
+  // Enrichment data always starts with \n\n — take only the AI summary (first paragraph)
+  const doubleNewline = finding.indexOf("\n\n");
+  let summary = doubleNewline > 0 ? finding.slice(0, doubleNewline).trim() : finding.trim();
+
+  // Also cut at single newline + bullet if it looks like a list
+  const singleBullet = summary.indexOf("\n- ");
+  if (singleBullet > 0) summary = summary.slice(0, singleBullet).trim();
+
+  if (summary.length > maxLen) summary = summary.slice(0, maxLen).trimEnd() + "...";
+  return summary;
 }
 
 // ── Types (mirror what comes from DB) ────────────────────────────
@@ -722,7 +738,7 @@ function checksTable(checks: ReportCheck[]): Table {
               children: [
                 new Paragraph({
                   spacing: { before: 40, after: 20 },
-                  children: [run(check.finding, { size: 20 })],
+                  children: [run(summarizeFinding(check.finding), { size: 20 })],
                 }),
                 new Paragraph({
                   spacing: { before: 20, after: 40 },

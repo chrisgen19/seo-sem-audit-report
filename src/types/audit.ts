@@ -137,6 +137,65 @@ export interface CrawlData {
   external_script_count?: number;
   external_style_count?: number;
   tech_detected?: string[];
+
+  // Security headers (detailed breakdown)
+  security_headers?: {
+    hsts?: string | null;
+    csp?: string | null;
+    x_frame_options?: string | null;
+    x_content_type_options?: string | null;
+    referrer_policy?: string | null;
+    permissions_policy?: string | null;
+    missing: string[];
+  };
+
+  // Script & stylesheet URLs
+  external_scripts?: string[];
+  external_styles?: string[];
+
+  // CTA elements
+  cta_elements?: Array<{
+    tag: string;
+    text: string;
+    href?: string;
+    position_index: number;
+  }>;
+
+  // Phone numbers found in body text
+  phone_numbers_in_text?: string[];
+
+  // Trust & social proof signals
+  trust_signals?: {
+    has_testimonials: boolean;
+    has_reviews: boolean;
+    has_trust_badges: boolean;
+    has_certifications: boolean;
+    has_partner_logos: boolean;
+    details: string[];
+  };
+
+  // FAQ elements
+  faq_elements?: Array<{ question: string; answer_preview: string }>;
+
+  // Viewport meta content
+  viewport_content?: string;
+
+  // Favicon
+  has_favicon?: boolean;
+
+  // hreflang tags
+  hreflang_tags?: Array<{ lang: string; href: string }>;
+
+  // Conversion/analytics tracking
+  conversion_tracking?: {
+    has_ga4: boolean;
+    has_gtm: boolean;
+    has_facebook_pixel: boolean;
+    has_google_ads: boolean;
+    has_linkedin_insight: boolean;
+    has_hotjar: boolean;
+    detected: string[];
+  };
 }
 
 // SSE event shapes for the streaming audit runner

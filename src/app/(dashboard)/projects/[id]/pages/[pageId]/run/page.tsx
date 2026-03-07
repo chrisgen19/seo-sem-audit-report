@@ -11,7 +11,7 @@ interface ApiKeyStatus {
 }
 
 export default function RunAuditPage() {
-  const { id, pageId } = useParams<{ id: string; pageId: string }>();
+  const { pageId } = useParams<{ id: string; pageId: string }>();
   const router = useRouter();
 
   const [provider, setProvider] = useState<"claude" | "gemini">("claude");

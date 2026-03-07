@@ -87,7 +87,12 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
     }
 
     run().catch((err) => {
-      if (err?.name !== "AbortError") throw err;
+      if (cancelled || err?.name === "AbortError") return;
+      setLog((prev) => [
+        ...prev,
+        { step: ERROR_STEP, message: err?.message ?? "Unexpected error.", ts: Date.now() },
+      ]);
+      setIsError(true);
     });
 
     return () => {

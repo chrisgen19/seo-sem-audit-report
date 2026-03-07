@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { statusBadgeClass, cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Rows3, Layers } from "lucide-react";
+import { ChevronDown, ChevronRight, Rows3, Layers, ExternalLink } from "lucide-react";
+import { CHECK_RESOURCES } from "@/lib/check-resources";
 
 type GroupMode = "per-row" | "per-group";
 type StatusFilter = "ALL" | "FAIL" | "WARN" | "PASS";
@@ -22,7 +23,62 @@ interface ChecksTableProps {
 }
 
 function truncate(text: string, max = 100) {
-  return text.length <= max ? text : text.slice(0, max).trimEnd() + "…";
+  // For truncated view, only show the first line/sentence (before bullet lists)
+  const firstLine = text.split("\n")[0];
+  const clean = firstLine.length <= max ? firstLine : firstLine.slice(0, max).trimEnd() + "…";
+  return clean;
+}
+
+/** Renders finding text with proper newlines, bullet points, and structure */
+function FormattedFinding({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith("- ")) {
+          return (
+            <div key={i} className="flex gap-1.5 pl-2">
+              <span className="text-gray-400 shrink-0">•</span>
+              <span className="text-gray-600 text-sm break-all">{trimmed.slice(2)}</span>
+            </div>
+          );
+        }
+        return (
+          <p key={i} className="text-gray-700 text-sm">
+            {trimmed}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResourceLinks({ checkName }: { checkName: string }) {
+  const resources = CHECK_RESOURCES[checkName];
+  if (!resources?.length) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-200">
+      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+        Helpful Resources
+      </span>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {resources.map((r) => (
+          <a
+            key={r.url}
+            href={r.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            {r.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── Per-row mode ──────────────────────────────────────────────────────────────
@@ -33,7 +89,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
   function toggle(i: number) {
     setOpenRows((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      if (next.has(i)) next.delete(i); else next.add(i);
       return next;
     });
   }
@@ -86,7 +142,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                   <tr className="bg-gray-50">
                     <td />
                     <td colSpan={3} className="px-4 pb-4 pt-2">
-                      <p className="text-gray-700 text-sm">{check.finding}</p>
+                      <FormattedFinding text={check.finding} />
                       {check.recommendation && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -95,6 +151,7 @@ function PerRowTable({ checks }: { checks: Check[] }) {
                           <p className="mt-1 text-sm text-gray-600">{check.recommendation}</p>
                         </div>
                       )}
+                      <ResourceLinks checkName={check.name} />
                     </td>
                   </tr>
                 )}
@@ -136,7 +193,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
   function toggleGroup(status: string) {
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      next.has(status) ? next.delete(status) : next.add(status);
+      if (next.has(status)) next.delete(status); else next.add(status);
       return next;
     });
   }
@@ -144,7 +201,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
   function toggleRow(key: string) {
     setOpenRows((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
@@ -205,7 +262,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
                       </button>
                       {isOpen && (
                         <div className="px-4 pb-4 pt-1 ml-7 bg-gray-50">
-                          <p className="text-gray-700 text-sm">{check.finding}</p>
+                          <FormattedFinding text={check.finding} />
                           {check.recommendation && (
                             <div className="mt-2 pt-2 border-t border-gray-200">
                               <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -214,6 +271,7 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
                               <p className="mt-1 text-sm text-gray-600">{check.recommendation}</p>
                             </div>
                           )}
+                          <ResourceLinks checkName={check.name} />
                         </div>
                       )}
                     </div>

@@ -111,16 +111,15 @@ CRITICAL RULES:
 - Respond with ONLY the JSON object, nothing else
 
 FINDING AND RECOMMENDATION QUALITY — THIS IS MANDATORY:
-- Every "finding" must cite specific numbers and actual values from the crawl data
-  GOOD: "Title tag is 98 characters — 38 chars over the 60-char limit."
-  BAD:  "Title tag is too long"
+- Every "finding" should be a concise summary sentence that cites key numbers from the crawl data
+  (e.g. counts, char lengths, response times). Do NOT list individual items — detailed item lists
+  will be appended automatically from the crawl data after your response.
+  GOOD: "5 of 19 images are missing alt text, primarily product and hero images."
+  GOOD: "Title tag is 98 characters — 38 chars over the 60-char recommended limit."
+  BAD:  "Title tag is too long" (too vague — cite the actual number)
+  BAD:  "Images without alt text:\\n- image1.jpg\\n- image2.jpg" (don't list items — that's handled automatically)
 - Every "recommendation" must be specific, step-by-step, and actionable for THIS site
-  GOOD: "Shorten the title to under 60 chars. Suggested: 'Service Name | Brand' — leads with the service, targets the primary keyword"
-  BAD:  "Shorten the title tag"
-- For image issues: state the exact count (e.g. '9 of 20 images') and describe what types of images are affected
-- For performance issues: cite the actual response time in ms and what threshold it exceeds
-- For content issues: quote the actual heading text, meta description text, or URL structure
-- Recommendations should explain WHY the change matters (ranking signal, user experience, click-through rate, etc.)`;
+- Recommendations should explain WHY the change matters (ranking signal, UX, CTR, etc.)`;
 
 function parseJsonResponse(text: string): AnalysisResult {
   const cleaned = text
@@ -138,12 +137,98 @@ function parseJsonResponse(text: string): AnalysisResult {
 }
 
 function buildPrompt(crawlData: CrawlData): string {
-  const trimmed = { ...crawlData };
-  if (typeof trimmed.content_text === "string" && trimmed.content_text.length > 3000) {
-    trimmed.content_text = trimmed.content_text.slice(0, 3000) + "...[truncated]";
-  }
+  // Build a summarized version of crawl data for the AI prompt.
+  // The AI only needs enough to decide PASS/WARN/FAIL + write a summary.
+  // Detailed item lists are appended by enrich.ts after the AI responds.
+  const imgs = crawlData.images ?? [];
+  const summarized = {
+    // Page basics
+    status_code: crawlData.status_code,
+    final_url: crawlData.final_url,
+    response_time_ms: crawlData.response_time_ms,
+    content_length: crawlData.content_length,
+    is_https: crawlData.is_https,
+    has_mixed_content: crawlData.has_mixed_content,
+    mixed_content_count: crawlData.mixed_content?.length ?? 0,
+
+    // Meta
+    title: crawlData.title,
+    title_length: crawlData.title_length,
+    meta_description: crawlData.meta_description,
+    meta_description_length: crawlData.meta_description_length,
+    meta_robots: crawlData.meta_robots,
+    has_viewport: crawlData.has_viewport,
+    html_lang: crawlData.html_lang,
+    canonical_url: crawlData.canonical_url,
+    has_canonical: crawlData.has_canonical,
+
+    // Content (trimmed)
+    word_count: crawlData.word_count,
+    paragraph_count: crawlData.paragraph_count,
+    duplicate_paragraph_count: crawlData.duplicate_paragraphs?.length ?? 0,
+    headings: crawlData.headings,
+    content_text: typeof crawlData.content_text === "string" && crawlData.content_text.length > 3000
+      ? crawlData.content_text.slice(0, 3000) + "...[truncated]"
+      : crawlData.content_text,
+
+    // Links (counts + samples)
+    internal_link_count: crawlData.internal_link_count,
+    external_link_count: crawlData.external_link_count,
+    has_phone_link: crawlData.has_phone_link,
+    tel_links: crawlData.tel_links,
+
+    // Images (summary only — enrich.ts handles the item list)
+    image_count: crawlData.image_count,
+    images_missing_alt: imgs.filter((i) => !i.has_alt).length,
+    images_missing_lazy: imgs.filter((i) => !i.has_lazy_loading).length,
+    images_missing_dims: imgs.filter((i) => !i.has_dimensions).length,
+    images_placeholder: imgs.filter((i) => i.is_placeholder).length,
+
+    // Schema
+    schema_types: crawlData.schema_types,
+    has_schema: crawlData.has_schema,
+
+    // Forms (summary)
+    form_count: crawlData.form_count,
+
+    // Social tags (presence only)
+    has_og_tags: crawlData.has_og_tags,
+    has_twitter_tags: crawlData.has_twitter_tags,
+
+    // Robots & sitemap
+    robots_txt_status: crawlData.robots_txt_status,
+    robots_txt_has_sitemap: crawlData.robots_txt_has_sitemap,
+    sitemap_status: crawlData.sitemap_status,
+    sitemap_url_count: crawlData.sitemap_url_count,
+    sitemap_contains_target: crawlData.sitemap_contains_target,
+
+    // Security headers (summary)
+    security_headers_missing: crawlData.security_headers?.missing ?? [],
+
+    // CTAs (summary)
+    cta_count: crawlData.cta_elements?.length ?? 0,
+    cta_samples: (crawlData.cta_elements ?? []).slice(0, 5).map((c) => c.text),
+
+    // Trust signals
+    trust_signals: crawlData.trust_signals,
+
+    // Phone numbers in text
+    phone_numbers_in_text: crawlData.phone_numbers_in_text,
+
+    // FAQ
+    faq_count: crawlData.faq_elements?.length ?? 0,
+
+    // Conversion tracking
+    conversion_tracking: crawlData.conversion_tracking,
+
+    // Tech
+    tech_detected: crawlData.tech_detected,
+    external_script_count: crawlData.external_script_count,
+    external_style_count: crawlData.external_style_count,
+  };
+
   return ANALYSIS_PROMPT
-    .replace("{crawl_data}", JSON.stringify(trimmed, null, 2))
+    .replace("{crawl_data}", JSON.stringify(summarized, null, 2))
     .replace("{checklist}", buildChecklistPrompt());
 }
 
@@ -157,7 +242,7 @@ export async function analyzeWithClaude(
 
   const message = await client.messages.create({
     model: model || CLAUDE_MODEL,
-    max_tokens: 8000,
+    max_tokens: 12000,
     messages: [{ role: "user", content: prompt }],
   });
 

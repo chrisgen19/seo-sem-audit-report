@@ -5,6 +5,7 @@ import { decrypt } from "@/lib/encrypt";
 import { SEOCrawler } from "@/lib/crawler";
 import { analyzeWithClaude, analyzeWithGemini } from "@/lib/analyzer";
 import { computeScores } from "@/lib/scoring";
+import { enrichFindings } from "@/lib/enrich";
 import type { AnalysisResult, AuditStreamEvent } from "@/types/audit";
 import { z } from "zod";
 
@@ -24,7 +25,6 @@ function sseEncoder() {
 async function saveAuditToDb(
   auditRunId: string,
   analysis: AnalysisResult,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   crawlData: Record<string, unknown>
 ) {
   const techChecks = analysis.technical_seo.checks.map((c) => ({
@@ -136,6 +136,25 @@ export async function POST(req: Request) {
     return Response.json({ error: "Failed to decrypt API key." }, { status: 500 });
   }
 
+  // Auto-expire stale runs older than 5 minutes
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await db.auditRun.updateMany({
+    where: { pageId, status: "running", createdAt: { lt: fiveMinAgo } },
+    data: { status: "failed", errorMessage: "Timed out — run exceeded 5 minutes" },
+  });
+
+  // Prevent duplicate runs — if one is already running for this page, reject
+  const existingRun = await db.auditRun.findFirst({
+    where: { pageId, status: "running" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existingRun) {
+    return Response.json(
+      { error: "An audit is already running for this page. Please wait for it to complete." },
+      { status: 409 }
+    );
+  }
+
   // Create audit run record
   const auditRun = await db.auditRun.create({
     data: { pageId, url: page.url, status: "running", provider },
@@ -181,9 +200,12 @@ export async function POST(req: Request) {
         send({ step: "scoring", message: "Computing scores from fixed rubric..." });
         const scored = computeScores(analysis);
 
+        // Step 3b: Enrich findings with crawl data evidence
+        const enriched = enrichFindings(scored, crawlData);
+
         // Step 4: Save
         send({ step: "saving", message: "Saving results to database..." });
-        await saveAuditToDb(auditRun.id, scored, crawlData as Record<string, unknown>);
+        await saveAuditToDb(auditRun.id, enriched, crawlData as Record<string, unknown>);
 
         send({ step: "done", auditId: auditRun.id });
       } catch (err) {
