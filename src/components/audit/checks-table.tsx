@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { statusBadgeClass, cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Rows3, Layers, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Rows3, Layers, ExternalLink, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
 import { CHECK_RESOURCES } from "@/lib/check-resources";
 
 type GroupMode = "per-row" | "per-group";
@@ -85,6 +85,7 @@ function ResourceLinks({ checkName }: { checkName: string }) {
 
 function PerRowTable({ checks }: { checks: Check[] }) {
   const [openRows, setOpenRows] = useState<Set<number>>(new Set());
+  const allExpanded = openRows.size === checks.length && checks.length > 0;
 
   function toggle(i: number) {
     setOpenRows((prev) => {
@@ -94,8 +95,25 @@ function PerRowTable({ checks }: { checks: Check[] }) {
     });
   }
 
+  function toggleAll() {
+    if (allExpanded) {
+      setOpenRows(new Set());
+    } else {
+      setOpenRows(new Set(checks.map((_, i) => i)));
+    }
+  }
+
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="flex justify-end px-3 py-1.5 bg-gray-50 border-b border-gray-200 print:hidden">
+        <button
+          onClick={toggleAll}
+          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+        >
+          {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+          {allExpanded ? "Collapse All" : "Expand All"}
+        </button>
+      </div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
@@ -190,6 +208,10 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const [openRows, setOpenRows] = useState<Set<string>>(new Set());
 
+  const allGroupKeys = groups.map((g) => g.status);
+  const allRowKeys = groups.flatMap((g) => g.items.map((_, i) => `${g.status}-${i}`));
+  const allExpanded = allGroupKeys.every((k) => openGroups.has(k)) && allRowKeys.every((k) => openRows.has(k)) && allRowKeys.length > 0;
+
   function toggleGroup(status: string) {
     setOpenGroups((prev) => {
       const next = new Set(prev);
@@ -206,8 +228,27 @@ function PerGroupTable({ checks }: { checks: Check[] }) {
     });
   }
 
+  function toggleAll() {
+    if (allExpanded) {
+      setOpenGroups(new Set());
+      setOpenRows(new Set());
+    } else {
+      setOpenGroups(new Set(allGroupKeys));
+      setOpenRows(new Set(allRowKeys));
+    }
+  }
+
   return (
     <div className="space-y-3">
+      <div className="flex justify-end print:hidden">
+        <button
+          onClick={toggleAll}
+          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+        >
+          {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+          {allExpanded ? "Collapse All" : "Expand All"}
+        </button>
+      </div>
       {groups.map(({ status, items }) => {
         const styles = GROUP_STYLES[status] ?? GROUP_STYLES.PASS;
         const isGroupOpen = openGroups.has(status);

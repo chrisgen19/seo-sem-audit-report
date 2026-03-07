@@ -2,15 +2,26 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
 import { ScoreCard } from "@/components/audit/score-card";
 import { ChecksTable } from "@/components/audit/checks-table";
 import { QuickWinsTable } from "@/components/audit/quick-wins-table";
+import { ScoreTrendChart } from "@/components/audit/score-trend-chart";
+import { SectionNav } from "@/components/audit/section-nav";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, Download } from "lucide-react";
 import type { QuickWin, AdGroup, PsiResult } from "@/types/audit";
 import type { AuditCheck } from "@prisma/client";
 import { PsiSection } from "@/components/audit/psi-section";
+
+function statusCounts(checks: { status: string }[]) {
+  let fail = 0, warn = 0, pass = 0;
+  for (const c of checks) {
+    if (c.status === "FAIL") fail++;
+    else if (c.status === "WARN") warn++;
+    else pass++;
+  }
+  return { fail, warn, pass };
+}
 
 export default async function AuditResultPage({
   params,
@@ -54,9 +65,44 @@ export default async function AuditResultPage({
     },
   });
 
+  // Fetch all done runs for score trend chart
+  const allDoneRuns = await db.auditRun.findMany({
+    where: { pageId: auditRun.pageId, status: "done" },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      createdAt: true,
+      overallScore: true,
+      technicalScore: true,
+      contentScore: true,
+      semScore: true,
+      meta: { select: { rawCrawlData: true } },
+    },
+  });
+
+  const trendRuns = allDoneRuns.map((r) => {
+    const raw = r.meta?.rawCrawlData as Record<string, unknown> | null;
+    const psiM = (raw?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    const psiD = (raw?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+    return {
+      id: r.id,
+      createdAt: r.createdAt.toISOString(),
+      overallScore: r.overallScore,
+      technicalScore: r.technicalScore,
+      contentScore: r.contentScore,
+      semScore: r.semScore,
+      psiMobile: psiM ?? null,
+      psiDesktop: psiD ?? null,
+    };
+  });
+
   const techChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "technical");
   const contentChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "content");
   const semChecks = auditRun.checks.filter((c: AuditCheck) => c.section === "sem");
+
+  const techCounts = statusCounts(techChecks);
+  const contentCounts = statusCounts(contentChecks);
+  const semCounts = statusCounts(semChecks);
 
   const meta = auditRun.meta;
   const quickWins = (meta?.quickWins ?? []) as unknown as QuickWin[];
@@ -82,43 +128,67 @@ export default async function AuditResultPage({
   const projectId = auditRun.page.project.id;
   const pageId = auditRun.page.id;
 
+  const hasPsi = !!(psiMobile || psiDesktop || psiError);
+
+  // Build nav items
+  const navItems = [
+    { id: "scores", label: "Scores" },
+    { id: "executive-summary", label: "Summary" },
+    ...(hasPsi ? [{ id: "psi", label: "PageSpeed" }] : []),
+    { id: "technical-seo", label: "Technical SEO" },
+    { id: "content-seo", label: "Content SEO" },
+    { id: "sem-readiness", label: "SEM" },
+    { id: "quick-wins", label: "Quick Wins" },
+    ...(trendRuns.length >= 2 ? [{ id: "score-trend", label: "Trend" }] : []),
+  ];
+
+  const headerTitle = meta?.businessName ?? auditRun.page.project.name;
+  const headerSubtitle = [
+    auditRun.url,
+    formatDateTime(auditRun.createdAt),
+    `via ${auditRun.provider}`,
+    ...(meta?.businessDesc ? [`— ${meta.businessDesc}`] : []),
+  ].join(" · ");
+
   return (
     <div>
       {/* Back link */}
       <Link
         href={`/projects/${projectId}/pages/${pageId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-brand-700 mb-4 transition-colors"
+        className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-brand-700 mb-4 transition-colors print:hidden"
       >
         <ChevronLeft className="h-4 w-4" />
         {auditRun.page.name} — {auditRun.page.project.name}
       </Link>
 
-      <Header
-        title={meta?.businessName ?? auditRun.page.project.name}
-        subtitle={`${auditRun.url} — ${formatDateTime(auditRun.createdAt)} via ${auditRun.provider}`}
+      {/* Sticky header with nav + actions */}
+      <SectionNav
+        items={navItems}
+        title={headerTitle}
+        subtitle={headerSubtitle}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <a
               href={`/api/audits/${id}/export`}
               download
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               <Download className="h-4 w-4" />
-              Export DOCX
+              <span className="hidden sm:inline">Export DOCX</span>
             </a>
             <Link
               href={`/projects/${projectId}/pages/${pageId}/run`}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-900 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-3 py-1.5 bg-brand-900 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
             >
               <Play className="h-4 w-4" />
-              Re-audit
+              <span className="hidden sm:inline">Re-audit</span>
             </Link>
           </div>
         }
       />
 
       {/* Score cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+      <div id="scores" className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 mt-6">
         <ScoreCard
           label="Overall"
           score={auditRun.overallScore ?? 0}
@@ -161,7 +231,7 @@ export default async function AuditResultPage({
 
       {/* Executive summary */}
       {meta && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <div id="executive-summary" className="bg-white rounded-xl border border-gray-200 p-6 mb-6 print:break-inside-avoid">
           <h2 className="font-semibold text-gray-900 mb-3">Executive Summary</h2>
           <div className="prose prose-sm max-w-none text-gray-700 space-y-2">
             {meta.executiveSummary.split("\n").filter(Boolean).map((p, i) => (
@@ -182,14 +252,14 @@ export default async function AuditResultPage({
       )}
 
       {/* PageSpeed Insights */}
-      {(psiMobile || psiDesktop || psiError) && (
-        <Section title="PageSpeed Insights (Core Web Vitals)">
+      {hasPsi && (
+        <Section id="psi" title="PageSpeed Insights (Core Web Vitals)">
           <PsiSection mobile={psiMobile} desktop={psiDesktop} psiError={psiError} />
         </Section>
       )}
 
       {/* Technical SEO */}
-      <Section title="1. Technical SEO">
+      <Section id="technical-seo" title="1. Technical SEO" counts={techCounts}>
         <ChecksTable checks={techChecks} />
         {priorityActions?.technical?.length ? (
           <PriorityList items={priorityActions.technical} />
@@ -197,7 +267,7 @@ export default async function AuditResultPage({
       </Section>
 
       {/* Content SEO */}
-      <Section title="2. Content SEO">
+      <Section id="content-seo" title="2. Content SEO" counts={contentCounts}>
         <ChecksTable checks={contentChecks} />
         {priorityActions?.content?.length ? (
           <PriorityList items={priorityActions.content} />
@@ -205,7 +275,7 @@ export default async function AuditResultPage({
       </Section>
 
       {/* SEM */}
-      <Section title="3. SEM / Google Ads Readiness">
+      <Section id="sem-readiness" title="3. SEM / Google Ads Readiness" counts={semCounts}>
         <ChecksTable checks={semChecks} />
 
         {(semStrengths.length > 0 || semIssues.length > 0) && (
@@ -268,17 +338,56 @@ export default async function AuditResultPage({
       </Section>
 
       {/* Quick wins */}
-      <Section title="4. Quick Wins">
+      <Section id="quick-wins" title="4. Quick Wins">
         <QuickWinsTable wins={quickWins} />
       </Section>
+
+      {/* Score trend chart */}
+      {trendRuns.length >= 2 && (
+        <div id="score-trend" className="bg-white rounded-xl border border-gray-200 p-6 mb-6 print:hidden">
+          <h2 className="font-semibold text-gray-900 text-lg mb-4">Score Trend</h2>
+          <ScoreTrendChart runs={trendRuns} />
+        </div>
+      )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  counts,
+  children,
+}: {
+  id: string;
+  title: string;
+  counts?: { fail: number; warn: number; pass: number };
+  children: React.ReactNode;
+}) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-      <h2 className="font-semibold text-gray-900 text-lg mb-4">{title}</h2>
+    <div id={id} className="bg-white rounded-xl border border-gray-200 p-6 mb-6 print:break-inside-avoid">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="font-semibold text-gray-900 text-lg">{title}</h2>
+        {counts && (
+          <div className="flex items-center gap-2">
+            {counts.fail > 0 && (
+              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700">
+                {counts.fail} Fail
+              </span>
+            )}
+            {counts.warn > 0 && (
+              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700">
+                {counts.warn} Warn
+              </span>
+            )}
+            {counts.pass > 0 && (
+              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-50 text-green-700">
+                {counts.pass} Pass
+              </span>
+            )}
+          </div>
+        )}
+      </div>
       <div className="space-y-4">{children}</div>
     </div>
   );

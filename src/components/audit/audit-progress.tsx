@@ -26,15 +26,17 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
   const [isDone, setIsDone] = useState(false);
   const [isError, setIsError] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent StrictMode double-mount from firing two requests.
+    // The ref persists across remounts — only the first mount runs.
     if (startedRef.current) return;
     startedRef.current = true;
 
-    let cancelled = false;
     const abortController = new AbortController();
+    abortRef.current = abortController;
 
     async function run() {
       const res = await fetch("/api/audits/run", {
@@ -45,7 +47,7 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
       });
 
       if (!res.ok) {
-        if (cancelled) return;
+        if (abortController.signal.aborted) return;
         const err = await res.json();
         setLog((prev) => [
           ...prev,
@@ -56,11 +58,10 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
       }
 
       const reader = res.body!.getReader();
-      readerRef.current = reader;
       const decoder = new TextDecoder();
       let buffer = "";
 
-      while (!cancelled) {
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -91,7 +92,7 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
     }
 
     run().catch((err) => {
-      if (cancelled || err?.name === "AbortError") return;
+      if (err?.name === "AbortError") return;
       setLog((prev) => [
         ...prev,
         { step: ERROR_STEP, message: err?.message ?? "Unexpected error.", ts: Date.now() },
@@ -99,16 +100,19 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
       setIsError(true);
     });
 
-    return () => {
-      cancelled = true;
-      abortController.abort();
-      readerRef.current?.cancel();
-    };
-  }, [pageId, provider, router]);
+    // No cleanup abort — StrictMode unmount must not kill the stream.
+    // Abort only happens via the Cancel button (handleCancel).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [log]);
+
+  function handleCancel() {
+    abortRef.current?.abort();
+    onCancel();
+  }
 
   return (
     <div className="space-y-4">
@@ -154,7 +158,7 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
       {isError && (
         <div className="flex gap-3">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
           >
             Go back
@@ -170,7 +174,7 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
 
       {!isDone && !isError && (
         <button
-          onClick={onCancel}
+          onClick={handleCancel}
           className="w-full py-2 px-4 border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 text-sm transition-colors"
         >
           Cancel

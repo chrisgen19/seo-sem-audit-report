@@ -7,3 +7,39 @@
     @apply bg-gray-50 text-gray-900 antialiased;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  /* Hide navigation, sidebar, buttons */
+  nav,
+  aside,
+  [data-sidebar] {
+    display: none !important;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  .rounded-xl {
+    box-shadow: none !important;
+  }
+
+  /* Avoid page breaks inside sections */
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  /* Expand all collapsible content for print */
+  details {
+    open: true;
+  }
+
+  /* Force score bar colors to print */
+  .bg-green-500,
+  .bg-amber-500,
+  .bg-red-500 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
