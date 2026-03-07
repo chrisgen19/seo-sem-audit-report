@@ -5,6 +5,7 @@ import { decrypt } from "@/lib/encrypt";
 import { SEOCrawler } from "@/lib/crawler";
 import { analyzeWithClaude, analyzeWithGemini } from "@/lib/analyzer";
 import { computeScores } from "@/lib/scoring";
+import { enrichFindings } from "@/lib/enrich";
 import type { AnalysisResult, AuditStreamEvent } from "@/types/audit";
 import { z } from "zod";
 
@@ -193,9 +194,12 @@ export async function POST(req: Request) {
         send({ step: "scoring", message: "Computing scores from fixed rubric..." });
         const scored = computeScores(analysis);
 
+        // Step 3b: Enrich findings with crawl data evidence
+        const enriched = enrichFindings(scored, crawlData);
+
         // Step 4: Save
         send({ step: "saving", message: "Saving results to database..." });
-        await saveAuditToDb(auditRun.id, scored, crawlData as Record<string, unknown>);
+        await saveAuditToDb(auditRun.id, enriched, crawlData as Record<string, unknown>);
 
         send({ step: "done", auditId: auditRun.id });
       } catch (err) {

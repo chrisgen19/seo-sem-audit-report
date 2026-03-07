@@ -111,42 +111,15 @@ CRITICAL RULES:
 - Respond with ONLY the JSON object, nothing else
 
 FINDING AND RECOMMENDATION QUALITY — THIS IS MANDATORY:
-- Every "finding" MUST start with a summary sentence, then list specific evidence from the crawl data
+- Every "finding" should be a concise summary sentence that cites key numbers from the crawl data
+  (e.g. counts, char lengths, response times). Do NOT list individual items — detailed item lists
+  will be appended automatically from the crawl data after your response.
+  GOOD: "5 of 19 images are missing alt text, primarily product and hero images."
+  GOOD: "Title tag is 98 characters — 38 chars over the 60-char recommended limit."
+  BAD:  "Title tag is too long" (too vague — cite the actual number)
+  BAD:  "Images without alt text:\\n- image1.jpg\\n- image2.jpg" (don't list items — that's handled automatically)
 - Every "recommendation" must be specific, step-by-step, and actionable for THIS site
-- Recommendations should explain WHY the change matters (ranking signal, UX, CTR, etc.)
-
-DETAIL FORMAT — findings MUST use this exact structure:
-  "<Summary sentence with counts/numbers>\\n\\nAffected items:\\n- item 1\\n- item 2\\n- item 3"
-
-THIS IS NON-NEGOTIABLE — you MUST enumerate individual items from the crawl data arrays.
-Do NOT summarize with "X of Y items" without also listing every single affected item below it.
-The client UI has collapsible rows specifically designed to show these long item lists.
-
-DETAIL REQUIREMENTS PER CHECK TYPE:
-- Image checks (Image Optimization, Lazy Loading, Image Alt Text): You MUST list EVERY affected image by extracting its "src" field from the images array in the crawl data. Do NOT say "19 images" without listing all 19. Example:
-  "5 of 19 images are missing alt text.\\n\\nImages without alt text:\\n- /images/hero-banner.jpg\\n- /images/product-1.webp\\n- /images/team-photo.png\\n- /images/logo-partner.svg\\n- /images/cta-bg.jpg"
-- HTTP Security Headers: List EACH missing header by name, what it does, and its risk. Reference the security_headers.missing array.
-- Link checks: Cite specific example URLs from the crawl data.
-- Title/Meta/H1 checks: Quote the EXACT text from the crawl data, state char count, and state the optimal range.
-- Structured Data: List the specific schema types found and which important ones are missing.
-- Page Speed: Cite actual response_time_ms value and what threshold it exceeds.
-- CTA/SEM checks: Reference specific cta_elements from the crawl data by their text.
-- Trust Signals/Social Proof: Reference what the trust_signals data found or didn't find.
-- Conversion Tracking: Reference the conversion_tracking.detected array — list what's present and what's missing.
-- Phone/Contact: Reference tel_links and phone_numbers_in_text from the crawl data.
-- FAQ/Rich Content: Reference faq_elements if present.
-- Content Depth: Cite actual word_count, paragraph_count, and heading counts.
-- Heading Hierarchy: List all headings found (H1, H2, H3) with their actual text.
-- OG/Social Tags: List which OG/Twitter tags are present and which are missing.
-- Duplicate Content: List any duplicate_paragraphs found.
-- URL Structure: Analyze the actual URL path and structure from the crawl data.
-- Robots.txt/Sitemap: Reference actual status codes and content from robots_txt_content and sitemap data.
-
-BAD (too vague):  "Title tag is too long"
-GOOD (detailed): "Title tag is 98 characters ('Equipment Hire & Sales | Supply Nation | Access Indigenous') — 38 chars over the 60-char recommended limit. Search engines will truncate this in SERPs."
-
-BAD:  "Some images lack lazy loading"
-GOOD: "All 19 images have has_lazy_loading: false.\\n\\nImages not lazy-loaded:\\n- /images/excavator-hero.jpg (format: jpg)\\n- /images/scissor-lift.webp (format: webp)\\n- /images/team.png (format: png)\\n\\nThis is especially impactful as several are large product photos below the fold."`;
+- Recommendations should explain WHY the change matters (ranking signal, UX, CTR, etc.)`;
 
 function parseJsonResponse(text: string): AnalysisResult {
   const cleaned = text
