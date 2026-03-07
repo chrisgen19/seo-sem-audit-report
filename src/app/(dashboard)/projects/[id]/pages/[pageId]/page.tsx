@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
-import { ScoreTrendChart } from "@/components/audit/score-trend-chart";
+import { ScoreTrendChart, ScoreSummaryRow } from "@/components/audit/score-trend-chart";
 import { formatDateTime } from "@/lib/utils";
 import { Play, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { DeleteAuditButton } from "@/components/audit/delete-audit-button";
@@ -82,23 +82,33 @@ export default async function PageDetailPage({
         }
       />
 
-      {/* Score trend chart */}
-      {doneRuns.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Score Trend</h2>
-            {latestRun && (
-              <span className="text-sm text-gray-500">
-                Latest:{" "}
-                <span className="font-bold text-gray-900">
-                  {latestRun.overallScore}/100 ({latestRun.overallGrade})
-                </span>
+      {/* Score trend */}
+      {doneRuns.length > 0 && (() => {
+        const latestWithPsi = doneRunsWithPsi[doneRunsWithPsi.length - 1];
+        const prevWithPsi = doneRunsWithPsi.length >= 2 ? doneRunsWithPsi[doneRunsWithPsi.length - 2] : null;
+
+        const summaryScores = [
+          { label: "Overall", current: latestRun?.overallScore ?? null, previous: prevWithPsi?.overallScore ?? null, color: "#1F4E79" },
+          { label: "Technical", current: latestRun?.technicalScore ?? null, previous: prevWithPsi?.technicalScore ?? null, color: "#2196F3" },
+          { label: "Content", current: latestRun?.contentScore ?? null, previous: prevWithPsi?.contentScore ?? null, color: "#27AE60" },
+          { label: "SEM", current: latestRun?.semScore ?? null, previous: prevWithPsi?.semScore ?? null, color: "#F39C12" },
+          { label: "PSI Mobile", current: latestWithPsi?.psiMobile ?? null, previous: prevWithPsi?.psiMobile ?? null, color: "#E74C3C" },
+          { label: "PSI Desktop", current: latestWithPsi?.psiDesktop ?? null, previous: prevWithPsi?.psiDesktop ?? null, color: "#9B59B6" },
+        ];
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Score Trend</h2>
+              <span className="text-xs text-gray-400">
+                {doneRunsWithPsi.length} audit{doneRunsWithPsi.length !== 1 ? "s" : ""}
               </span>
-            )}
+            </div>
+            <ScoreSummaryRow scores={summaryScores} />
+            <ScoreTrendChart runs={doneRunsWithPsi} />
           </div>
-          <ScoreTrendChart runs={doneRunsWithPsi} />
-        </div>
-      )}
+        );
+      })()}
 
       {/* Audit history */}
       <div className="bg-white rounded-xl border border-gray-200">
