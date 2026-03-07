@@ -6,7 +6,6 @@ import { Header } from "@/components/layout/header";
 import { AuditProgress } from "@/components/audit/audit-progress";
 
 interface ApiKeyStatus {
-  claudeApiKey: string | null;
   geminiApiKey: string | null;
 }
 
@@ -14,7 +13,7 @@ export default function RunAuditPage() {
   const { pageId } = useParams<{ id: string; pageId: string }>();
   const router = useRouter();
 
-  const [provider, setProvider] = useState<"claude" | "gemini">("claude");
+  const provider = "gemini" as const;
   const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -24,13 +23,11 @@ export default function RunAuditPage() {
       .then((r) => r.json())
       .then((d: ApiKeyStatus) => {
         setApiKeyStatus(d);
-        if (!d.claudeApiKey && d.geminiApiKey) setProvider("gemini");
         setLoading(false);
       });
   }, []);
 
-  const hasSelectedKey =
-    provider === "claude" ? !!apiKeyStatus?.claudeApiKey : !!apiKeyStatus?.geminiApiKey;
+  const hasSelectedKey = !!apiKeyStatus?.geminiApiKey;
 
   if (loading) {
     return (
@@ -42,45 +39,23 @@ export default function RunAuditPage() {
 
   return (
     <div className="max-w-lg">
-      <Header title="Run Audit" subtitle="Choose your AI provider and start the analysis" />
+      <Header title="Run Audit" subtitle="Analyze your page with Gemini AI" />
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         {!running ? (
           <div className="space-y-6">
-            {/* Provider selector */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                AI Provider
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["claude", "gemini"] as const).map((p) => {
-                  const hasKey = p === "claude" ? !!apiKeyStatus?.claudeApiKey : !!apiKeyStatus?.geminiApiKey;
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setProvider(p)}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
-                        provider === p
-                          ? "border-brand-700 bg-brand-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <p className="font-semibold text-gray-900">{p === "claude" ? "Claude" : "Gemini"}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {p === "claude" ? "Anthropic" : "Google AI"}
-                      </p>
-                      <p className={`text-xs mt-1 font-medium ${hasKey ? "text-green-600" : "text-red-500"}`}>
-                        {hasKey ? "API key set" : "No key — set in Settings"}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Provider info */}
+            <div className="p-4 rounded-lg border-2 border-brand-700 bg-brand-50">
+              <p className="font-semibold text-gray-900">Gemini</p>
+              <p className="text-xs text-gray-400 mt-0.5">Google AI</p>
+              <p className={`text-xs mt-1 font-medium ${hasSelectedKey ? "text-green-600" : "text-red-500"}`}>
+                {hasSelectedKey ? "API key set" : "No key — set in Settings"}
+              </p>
             </div>
 
             {!hasSelectedKey && (
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
-                No API key for {provider === "claude" ? "Claude" : "Gemini"}.{" "}
+                No API key for Gemini.{" "}
                 <a href="/settings" className="underline font-medium">
                   Go to Settings
                 </a>{" "}

@@ -7,18 +7,9 @@ import { Eye, EyeOff } from "lucide-react";
 interface SettingsData {
   name: string;
   email: string;
-  claudeApiKey: string | null;
   geminiApiKey: string | null;
-  claudeModel: string | null;
   geminiModel: string | null;
 }
-
-const CLAUDE_MODELS = [
-  "claude-opus-4-6",
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-20250514",
-  "claude-haiku-4-5-20251001",
-];
 
 const GEMINI_MODELS = [
   "gemini-2.5-pro-preview-03-25",
@@ -31,13 +22,10 @@ const GEMINI_MODELS = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [name, setName] = useState("");
-  const [claudeKey, setClaudeKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
-  const [claudeModel, setClaudeModel] = useState("");
   const [geminiModel, setGeminiModel] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [showClaude, setShowClaude] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -49,7 +37,6 @@ export default function SettingsPage() {
       .then((d: SettingsData) => {
         setSettings(d);
         setName(d.name ?? "");
-        setClaudeModel(d.claudeModel ?? "");
         setGeminiModel(d.geminiModel ?? "");
       });
   }, []);
@@ -62,10 +49,8 @@ export default function SettingsPage() {
 
     const body: Record<string, string | null | undefined> = {
       name,
-      claudeModel,
       geminiModel,
     };
-    if (claudeKey) body.claudeApiKey = claudeKey;
     if (geminiKey) body.geminiApiKey = geminiKey;
     if (newPassword) {
       body.newPassword = newPassword;
@@ -87,11 +72,10 @@ export default function SettingsPage() {
     }
 
     setMessage("Settings saved successfully.");
-    setClaudeKey("");
     setGeminiKey("");
     setCurrentPassword("");
     setNewPassword("");
-    setSettings((prev) => (prev ? { ...prev, ...data, claudeModel, geminiModel } : prev));
+    setSettings((prev) => (prev ? { ...prev, ...data, geminiModel } : prev));
   }
 
   if (!settings) {
@@ -140,32 +124,6 @@ export default function SettingsPage() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-400 text-sm cursor-not-allowed"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Claude */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-900 mb-1">Anthropic (Claude)</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            Keys are encrypted (AES-256) before storage. Leave blank to keep existing key.
-          </p>
-          <div className="space-y-4">
-            <ApiKeyField
-              label="API Key"
-              placeholder={settings.claudeApiKey ? "••••••••••••• (already set)" : "sk-ant-..."}
-              value={claudeKey}
-              onChange={setClaudeKey}
-              show={showClaude}
-              onToggleShow={() => setShowClaude((v) => !v)}
-              isSet={!!settings.claudeApiKey}
-            />
-            <ModelField
-              label="Model"
-              value={claudeModel}
-              onChange={setClaudeModel}
-              suggestions={CLAUDE_MODELS}
-              placeholder="claude-sonnet-4-20250514"
-            />
           </div>
         </div>
 
