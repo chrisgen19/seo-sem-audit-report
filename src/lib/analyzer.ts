@@ -115,11 +115,15 @@ FINDING AND RECOMMENDATION QUALITY — THIS IS MANDATORY:
 - Every "recommendation" must be specific, step-by-step, and actionable for THIS site
 - Recommendations should explain WHY the change matters (ranking signal, UX, CTR, etc.)
 
-DETAIL FORMAT — findings must use this structure:
+DETAIL FORMAT — findings MUST use this exact structure:
   "<Summary sentence with counts/numbers>\\n\\nAffected items:\\n- item 1\\n- item 2\\n- item 3"
 
+THIS IS NON-NEGOTIABLE — you MUST enumerate individual items from the crawl data arrays.
+Do NOT summarize with "X of Y items" without also listing every single affected item below it.
+The client UI has collapsible rows specifically designed to show these long item lists.
+
 DETAIL REQUIREMENTS PER CHECK TYPE:
-- Image checks (Image Optimization, Lazy Loading, Image Alt Text): List EACH affected image by its src filename/URL. Example:
+- Image checks (Image Optimization, Lazy Loading, Image Alt Text): You MUST list EVERY affected image by extracting its "src" field from the images array in the crawl data. Do NOT say "19 images" without listing all 19. Example:
   "5 of 19 images are missing alt text.\\n\\nImages without alt text:\\n- /images/hero-banner.jpg\\n- /images/product-1.webp\\n- /images/team-photo.png\\n- /images/logo-partner.svg\\n- /images/cta-bg.jpg"
 - HTTP Security Headers: List EACH missing header by name, what it does, and its risk. Reference the security_headers.missing array.
 - Link checks: Cite specific example URLs from the crawl data.
