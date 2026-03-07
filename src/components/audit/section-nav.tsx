@@ -56,47 +56,45 @@ export function SectionNav({ items, title, subtitle, actions }: SectionNavProps)
   }
 
   return (
-    <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 -mx-8 px-8 print:hidden transition-shadow"
-      style={{ boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}
-    >
-      {/* Title row + actions */}
-      <div className="flex items-center justify-between py-3 gap-4">
-        <div className="min-w-0">
+    <>
+      <div
+        className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 -mx-8 px-8 print:hidden transition-shadow"
+        style={{ boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}
+      >
+        {/* Title row + actions */}
+        <div className="flex items-center justify-between pt-3 pb-2 gap-4">
           <h1 className={cn(
-            "font-bold text-gray-900 truncate transition-all",
+            "font-bold text-gray-900 transition-all",
             scrolled ? "text-base" : "text-lg"
           )}>
             {title}
           </h1>
-          {subtitle && (
-            <p className={cn(
-              "text-gray-500 truncate transition-all",
-              scrolled ? "text-xs" : "text-sm mt-0.5"
-            )}>
-              {subtitle}
-            </p>
-          )}
+          {actions}
         </div>
-        {actions}
+
+        {/* Section nav pills */}
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => scrollTo(item.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+                activeId === item.id
+                  ? "bg-brand-900 text-white"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Section nav pills */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => scrollTo(item.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-              activeId === item.id
-                ? "bg-brand-900 text-white"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      {/* Subtitle — outside sticky, scrolls with page */}
+      {subtitle && (
+        <p className="text-gray-500 text-sm mt-4 mb-2">{subtitle}</p>
+      )}
+    </>
   );
 }
