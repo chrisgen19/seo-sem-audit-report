@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { AuditProgress } from "@/components/audit/audit-progress";
 
 export default function RunAuditPage() {
-  const { pageId } = useParams<{ id: string; pageId: string }>();
+  const { id: projectId, pageId } = useParams<{ id: string; pageId: string }>();
   const router = useRouter();
 
   const [hasKey, setHasKey] = useState<boolean | null>(null);
@@ -57,6 +57,7 @@ export default function RunAuditPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <AuditProgress
           pageId={pageId}
+          projectId={projectId}
           provider="gemini"
           onCancel={() => router.back()}
         />
