@@ -100,12 +100,10 @@ export default async function AuditResultPage({
   ];
 
   const headerTitle = meta?.businessName ?? auditRun.page.project.name;
-  const headerSubtitle = [
-    auditRun.url,
-    formatDateTime(auditRun.createdAt),
-    `via ${auditRun.provider}`,
-    ...(meta?.businessDesc ? [`— ${meta.businessDesc}`] : []),
-  ].join(" · ");
+  const pageTitle = (rawCrawl?.title as string | null | undefined) ?? null;
+  const pageTitleLength = (rawCrawl?.title_length as number | null | undefined) ?? null;
+  const metaDescription = (rawCrawl?.meta_description as string | null | undefined) ?? null;
+  const metaDescriptionLength = (rawCrawl?.meta_description_length as number | null | undefined) ?? null;
 
   return (
     <div>
@@ -122,7 +120,16 @@ export default async function AuditResultPage({
       <SectionNav
         items={navItems}
         title={headerTitle}
-        subtitle={headerSubtitle}
+        metadata={{
+          url: auditRun.url,
+          pageTitle,
+          pageTitleLength,
+          metaDescription,
+          metaDescriptionLength,
+          date: formatDateTime(auditRun.createdAt),
+          provider: auditRun.provider,
+          businessDesc: meta?.businessDesc ?? null,
+        }}
         actions={
           <div className="flex items-center gap-2 shrink-0">
             <a
