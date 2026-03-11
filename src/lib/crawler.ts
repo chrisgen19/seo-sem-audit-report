@@ -680,16 +680,23 @@ export class SEOCrawler {
   }
 
   private async fetchPageSpeedInsights() {
-    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 40–80s)...");
+    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 25–45s)...");
 
-    // Run mobile and desktop sequentially to avoid Google PSI API rate limiting.
-    // Parallel requests often cause 429 (one succeeds, one fails). Sequential + delay is reliable.
-    const PSI_DELAY_BETWEEN_STRATEGIES_MS = 2000;
+    // Staggered parallel: start mobile, wait 3s, then start desktop. Avoids simultaneous hits
+    // (rate limit) while keeping total time within maxDuration=300. Fully sequential would
+    // double worst-case to ~392s and exceed the cap.
+    const PSI_STAGGER_MS = 3000;
 
-    const mobileRes = await this.fetchPsiStrategy("mobile");
+    const mobilePromise = this.fetchPsiStrategy("mobile");
+    await new Promise((r) => setTimeout(r, PSI_STAGGER_MS));
+    const desktopPromise = this.fetchPsiStrategy("desktop");
+
+    const [mobileRes, desktopRes] = await Promise.all([mobilePromise, desktopPromise]);
     const mobile = mobileRes.result;
+    const desktop = desktopRes.result;
     const errors: string[] = [];
     if (mobileRes.error) errors.push(`Mobile: ${mobileRes.error}`);
+    if (desktopRes.error) errors.push(`Desktop: ${desktopRes.error}`);
 
     if (mobile) {
       this.data.psi = mobile;
@@ -697,13 +704,6 @@ export class SEOCrawler {
         `PSI Mobile: ${mobile.performance_score}/100 | LCP: ${(mobile.lcp / 1000).toFixed(1)}s | CLS: ${mobile.cls} | TBT: ${mobile.tbt}ms`
       );
     }
-
-    await new Promise((r) => setTimeout(r, PSI_DELAY_BETWEEN_STRATEGIES_MS));
-
-    const desktopRes = await this.fetchPsiStrategy("desktop");
-    const desktop = desktopRes.result;
-    if (desktopRes.error) errors.push(`Desktop: ${desktopRes.error}`);
-
     if (desktop) {
       this.data.psi_desktop = desktop;
       this.onProgress(
