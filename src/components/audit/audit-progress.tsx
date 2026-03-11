@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import type { AuditStreamEvent } from "@/types/audit";
 
 interface AuditProgressProps {
   pageId: string;
+  projectId: string;
   provider: "gemini";
   onCancel: () => void;
 }
@@ -20,8 +20,7 @@ interface LogEntry {
 const DONE_STEPS = new Set(["crawl_done", "analyze_done", "done"]);
 const ERROR_STEP = "error";
 
-export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps) {
-  const router = useRouter();
+export function AuditProgress({ pageId, projectId, provider, onCancel }: AuditProgressProps) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [isDone, setIsDone] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -77,7 +76,13 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
 
             if (event.step === "done") {
               setIsDone(true);
-              setTimeout(() => router.push(`/audits/${event.auditId}`), 800);
+              // Redirect to page detail with full reload so audit history shows the new run
+              // (bypasses Next.js client router cache which can show stale data)
+              const target =
+                projectId && pageId
+                  ? `/projects/${projectId}/pages/${pageId}`
+                  : `/audits/${event.auditId}`;
+              setTimeout(() => (window.location.href = target), 800);
               return;
             }
             if (event.step === "error") {
@@ -151,7 +156,7 @@ export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps
 
       {isDone && (
         <p className="text-center text-green-600 font-medium">
-          Audit complete! Redirecting to results...
+          Audit complete! Redirecting to audit history...
         </p>
       )}
 
