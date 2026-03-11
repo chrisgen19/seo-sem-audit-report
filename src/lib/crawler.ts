@@ -680,13 +680,16 @@ export class SEOCrawler {
   }
 
   private async fetchPageSpeedInsights() {
-    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 20–40s)...");
+    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 40–80s)...");
 
-    // Fetch both strategies in parallel
-    const [mobile, desktop] = await Promise.all([
-      this.fetchPsiStrategy("mobile"),
-      this.fetchPsiStrategy("desktop"),
-    ]);
+    // Run mobile and desktop sequentially to avoid Google PSI API rate limiting.
+    // Parallel requests often cause 429 (one succeeds, one fails). Sequential + delay is reliable.
+    const PSI_DELAY_BETWEEN_STRATEGIES_MS = 2000;
+
+    const mobileRes = await this.fetchPsiStrategy("mobile");
+    const mobile = mobileRes.result;
+    const errors: string[] = [];
+    if (mobileRes.error) errors.push(`Mobile: ${mobileRes.error}`);
 
     if (mobile) {
       this.data.psi = mobile;
@@ -694,18 +697,29 @@ export class SEOCrawler {
         `PSI Mobile: ${mobile.performance_score}/100 | LCP: ${(mobile.lcp / 1000).toFixed(1)}s | CLS: ${mobile.cls} | TBT: ${mobile.tbt}ms`
       );
     }
+
+    await new Promise((r) => setTimeout(r, PSI_DELAY_BETWEEN_STRATEGIES_MS));
+
+    const desktopRes = await this.fetchPsiStrategy("desktop");
+    const desktop = desktopRes.result;
+    if (desktopRes.error) errors.push(`Desktop: ${desktopRes.error}`);
+
     if (desktop) {
       this.data.psi_desktop = desktop;
       this.onProgress(
         `PSI Desktop: ${desktop.performance_score}/100 | LCP: ${(desktop.lcp / 1000).toFixed(1)}s | CLS: ${desktop.cls} | TBT: ${desktop.tbt}ms`
       );
     }
+
+    if (errors.length) this.data.psi_error = errors.join("; ");
     if (!mobile && !desktop) {
       this.onProgress("PageSpeed Insights: unavailable for both strategies");
     }
   }
 
-  private async fetchPsiStrategy(strategy: "mobile" | "desktop"): Promise<PsiResult | null> {
+  private async fetchPsiStrategy(
+    strategy: "mobile" | "desktop"
+  ): Promise<{ result: PsiResult | null; error?: string }> {
     const PSI_MAX_RETRIES = 3;
     const PSI_INITIAL_DELAY = 5000;
 
@@ -730,23 +744,20 @@ export class SEOCrawler {
             await new Promise((r) => setTimeout(r, delay));
             continue;
           }
-          this.data.psi_error = `PSI API (${strategy}) returned ${resp.status} after ${PSI_MAX_RETRIES} attempts`;
-          return null;
+          return { result: null, error: `PSI API returned ${resp.status} after ${PSI_MAX_RETRIES} attempts` };
         }
 
         if (!resp.ok) {
-          this.data.psi_error = `PSI API (${strategy}) returned ${resp.status}`;
-          return null;
+          return { result: null, error: `PSI API returned ${resp.status}` };
         }
 
         const json = await resp.json();
         const lhr = json.lighthouseResult;
         if (!lhr) {
-          this.data.psi_error = `No Lighthouse result for ${strategy}`;
-          return null;
+          return { result: null, error: "No Lighthouse result" };
         }
 
-        return this.parseLighthouseResult(lhr, strategy);
+        return { result: this.parseLighthouseResult(lhr, strategy) };
       } catch (err) {
         if (attempt < PSI_MAX_RETRIES) {
           const delay = PSI_INITIAL_DELAY * attempt;
@@ -754,11 +765,10 @@ export class SEOCrawler {
           await new Promise((r) => setTimeout(r, delay));
           continue;
         }
-        this.data.psi_error = String(err);
-        return null;
+        return { result: null, error: String(err) };
       }
     }
-    return null;
+    return { result: null };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
