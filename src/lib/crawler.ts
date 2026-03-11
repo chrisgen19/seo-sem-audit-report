@@ -680,18 +680,17 @@ export class SEOCrawler {
   }
 
   private async fetchPageSpeedInsights() {
-    this.onProgress("Running PageSpeed Insights — mobile + desktop (this takes 25–45s)...");
+    this.onProgress("Running PageSpeed Insights — mobile then desktop (this takes 30–60s)...");
 
-    // Staggered parallel: start mobile, wait 3s, then start desktop. Avoids simultaneous hits
-    // (rate limit) while keeping total time within maxDuration=300. Fully sequential would
-    // double worst-case to ~392s and exceed the cap.
-    const PSI_STAGGER_MS = 3000;
+    // Sequential execution: mobile finishes completely before desktop starts.
+    // Parallel/staggered requests trigger Google PSI rate limiting (429/503) because
+    // both calls stay in-flight far longer than any stagger delay.
+    // Reduced retries (2) and timeout (30s) keep worst-case ~132s, well within maxDuration=300.
+    const PSI_DELAY_BETWEEN_STRATEGIES_MS = 2000;
 
-    const mobilePromise = this.fetchPsiStrategy("mobile");
-    await new Promise((r) => setTimeout(r, PSI_STAGGER_MS));
-    const desktopPromise = this.fetchPsiStrategy("desktop");
-
-    const [mobileRes, desktopRes] = await Promise.all([mobilePromise, desktopPromise]);
+    const mobileRes = await this.fetchPsiStrategy("mobile");
+    await new Promise((r) => setTimeout(r, PSI_DELAY_BETWEEN_STRATEGIES_MS));
+    const desktopRes = await this.fetchPsiStrategy("desktop");
     const mobile = mobileRes.result;
     const desktop = desktopRes.result;
     const errors: string[] = [];
@@ -720,7 +719,7 @@ export class SEOCrawler {
   private async fetchPsiStrategy(
     strategy: "mobile" | "desktop"
   ): Promise<{ result: PsiResult | null; error?: string }> {
-    const PSI_MAX_RETRIES = 3;
+    const PSI_MAX_RETRIES = 2;
     const PSI_INITIAL_DELAY = 5000;
 
     const params = new URLSearchParams({
@@ -735,7 +734,7 @@ export class SEOCrawler {
 
     for (let attempt = 1; attempt <= PSI_MAX_RETRIES; attempt++) {
       try {
-        const resp = await fetchWithTimeout(apiUrl, 60_000);
+        const resp = await fetchWithTimeout(apiUrl, 30_000);
 
         if (resp.status === 429 || resp.status === 503) {
           if (attempt < PSI_MAX_RETRIES) {
