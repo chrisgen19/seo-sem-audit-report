@@ -31,7 +31,10 @@ export default async function AuditResultPage({
   const session = await auth();
   const { id } = await params;
 
-  const data = await getCachedAuditRun(id, session!.user.organizationId!);
+  const orgId = session?.user.organizationId ?? null;
+  const userId = session!.user.id;
+
+  const data = await getCachedAuditRun(id, orgId ?? userId);
 
   if (!data) notFound();
 

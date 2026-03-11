@@ -7,6 +7,12 @@ import type {
   ReportAdGroup,
 } from "@/lib/report";
 
+function isUnknownArgumentError(err: unknown, argName: string) {
+  if (!err || typeof err !== "object") return false;
+  const message = "message" in err ? (err as { message?: unknown }).message : undefined;
+  return typeof message === "string" && message.includes(`Unknown argument \`${argName}\``);
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -18,20 +24,39 @@ export async function GET(
 
   const { id } = await params;
 
-  const auditRun = await db.auditRun.findFirst({
-    where: { id, page: { project: { organizationId: ctx.organizationId } } },
-    include: {
-      page: {
-        select: {
-          name: true,
-          url: true,
-          project: { select: { name: true } },
+  const auditRun = await db.auditRun
+    .findFirst({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, page: { project: { organizationId: ctx.organizationId } } } as any,
+      include: {
+        page: {
+          select: {
+            name: true,
+            url: true,
+            project: { select: { name: true } },
+          },
         },
+        checks: { orderBy: [{ section: "asc" }, { name: "asc" }] },
+        meta: true,
       },
-      checks: { orderBy: [{ section: "asc" }, { name: "asc" }] },
-      meta: true,
-    },
-  });
+    })
+    .catch((err) => {
+      if (!isUnknownArgumentError(err, "organizationId")) throw err;
+      return db.auditRun.findFirst({
+        where: { id, page: { project: { userId: ctx.userId } } },
+        include: {
+          page: {
+            select: {
+              name: true,
+              url: true,
+              project: { select: { name: true } },
+            },
+          },
+          checks: { orderBy: [{ section: "asc" }, { name: "asc" }] },
+          meta: true,
+        },
+      });
+    });
 
   if (!auditRun) return new Response("Not found", { status: 404 });
   if (auditRun.status !== "done") {

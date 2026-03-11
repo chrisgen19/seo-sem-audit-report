@@ -2,6 +2,12 @@ import { getOrgContext, isAdmin } from "@/lib/org";
 import { db } from "@/lib/db";
 import { revalidateProject } from "@/lib/cache";
 
+function isUnknownArgumentError(err: unknown, argName: string) {
+  if (!err || typeof err !== "object") return false;
+  const message = "message" in err ? (err as { message?: unknown }).message : undefined;
+  return typeof message === "string" && message.includes(`Unknown argument \`${argName}\``);
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -11,32 +17,63 @@ export async function GET(
 
   const { id } = await params;
 
-  const project = await db.project.findFirst({
-    where: { id, organizationId: ctx.organizationId },
-    include: {
-      pages: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          auditRuns: {
-            where: { status: "done" },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              overallScore: true,
-              overallGrade: true,
-              technicalScore: true,
-              contentScore: true,
-              semScore: true,
-              createdAt: true,
-              status: true,
+  const project = await db.project
+    .findFirst({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, organizationId: ctx.organizationId } as any,
+      include: {
+        pages: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            auditRuns: {
+              where: { status: "done" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                id: true,
+                overallScore: true,
+                overallGrade: true,
+                technicalScore: true,
+                contentScore: true,
+                semScore: true,
+                createdAt: true,
+                status: true,
+              },
             },
+            _count: { select: { auditRuns: true } },
           },
-          _count: { select: { auditRuns: true } },
         },
       },
-    },
-  });
+    })
+    .catch((err) => {
+      if (!isUnknownArgumentError(err, "organizationId")) throw err;
+      return db.project.findFirst({
+        where: { id, userId: ctx.userId },
+        include: {
+          pages: {
+            orderBy: { createdAt: "asc" },
+            include: {
+              auditRuns: {
+                where: { status: "done" },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  overallScore: true,
+                  overallGrade: true,
+                  technicalScore: true,
+                  contentScore: true,
+                  semScore: true,
+                  createdAt: true,
+                  status: true,
+                },
+              },
+              _count: { select: { auditRuns: true } },
+            },
+          },
+        },
+      });
+    });
 
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
   return Response.json(project);
@@ -55,9 +92,15 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const project = await db.project.findFirst({
-    where: { id, organizationId: ctx.organizationId },
-  });
+  const project = await db.project
+    .findFirst({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, organizationId: ctx.organizationId } as any,
+    })
+    .catch((err) => {
+      if (!isUnknownArgumentError(err, "organizationId")) throw err;
+      return db.project.findFirst({ where: { id, userId: ctx.userId } });
+    });
   if (!project) return Response.json({ error: "Not found" }, { status: 404 });
 
   await db.project.delete({ where: { id } });

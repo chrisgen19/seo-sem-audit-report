@@ -16,7 +16,10 @@ export default async function PageDetailPage({
   const session = await auth();
   const { id, pageId } = await params;
 
-  const page = await getCachedPage(pageId, id, session!.user.organizationId!);
+  const orgId = session?.user.organizationId ?? null;
+  const userId = session!.user.id;
+
+  const page = await getCachedPage(pageId, id, orgId ?? userId);
 
   if (!page) notFound();
 

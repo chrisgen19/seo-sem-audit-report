@@ -3,13 +3,29 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
+function orgTablesAvailable() {
+  const d = db as unknown as { organizationMember?: unknown };
+  const delegate = d.organizationMember as { findMany?: unknown; create?: unknown; findFirst?: unknown; count?: unknown } | undefined;
+  return !!delegate?.findMany;
+}
+
+// Runtime-only reference; org tables may not exist in current schema (guarded by orgTablesAvailable())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const om = (db as any).organizationMember;
+
 /** GET /api/admin/members — list all org members */
 export async function GET() {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
-  const members = await db.organizationMember.findMany({
+  const members = await om.findMany({
     where: { organizationId: ctx.organizationId },
     include: {
       user: { select: { id: true, name: true, email: true, createdAt: true } },
@@ -32,6 +48,12 @@ export async function POST(req: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -48,7 +70,8 @@ export async function POST(req: Request) {
     const user = await tx.user.create({
       data: { name, email, passwordHash },
     });
-    return tx.organizationMember.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (tx as any).organizationMember.create({
       data: {
         userId: user.id,
         organizationId: ctx.organizationId,
@@ -76,6 +99,12 @@ export async function PATCH(req: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -85,7 +114,7 @@ export async function PATCH(req: Request) {
 
   const { memberId, action, name, role } = parsed.data;
 
-  const member = await db.organizationMember.findFirst({
+  const member = await om.findFirst({
     where: { id: memberId, organizationId: ctx.organizationId },
   });
   if (!member) return Response.json({ error: "Member not found" }, { status: 404 });
@@ -103,7 +132,7 @@ export async function PATCH(req: Request) {
     member.role === "ADMIN" &&
     (action === "demote" || action === "remove" || (action === "update" && role === "MEMBER"));
   if (removingAdmin) {
-    const adminCount = await db.organizationMember.count({
+    const adminCount = await om.count({
       where: { organizationId: ctx.organizationId, role: "ADMIN", status: "ACTIVE" },
     });
     if (adminCount <= 1) {
@@ -113,7 +142,7 @@ export async function PATCH(req: Request) {
 
   switch (action) {
     case "approve":
-      await db.organizationMember.update({ where: { id: memberId }, data: { status: "ACTIVE" } });
+      await om.update({ where: { id: memberId }, data: { status: "ACTIVE" } });
       break;
 
     case "reject":
@@ -122,17 +151,18 @@ export async function PATCH(req: Request) {
         if (action === "reject" && member.status === "PENDING") {
           await tx.user.delete({ where: { id: member.userId } });
         } else {
-          await tx.organizationMember.delete({ where: { id: memberId } });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (tx as any).organizationMember.delete({ where: { id: memberId } });
         }
       });
       break;
 
     case "promote":
-      await db.organizationMember.update({ where: { id: memberId }, data: { role: "ADMIN" } });
+      await om.update({ where: { id: memberId }, data: { role: "ADMIN" } });
       break;
 
     case "demote":
-      await db.organizationMember.update({ where: { id: memberId }, data: { role: "MEMBER" } });
+      await om.update({ where: { id: memberId }, data: { role: "MEMBER" } });
       break;
 
     case "update":
@@ -141,7 +171,8 @@ export async function PATCH(req: Request) {
           await tx.user.update({ where: { id: member.userId }, data: { name } });
         }
         if (role !== undefined) {
-          await tx.organizationMember.update({ where: { id: memberId }, data: { role } });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (tx as any).organizationMember.update({ where: { id: memberId }, data: { role } });
         }
       });
       break;

@@ -16,7 +16,10 @@ export default async function ProjectPage({
   const session = await auth();
   const { id } = await params;
 
-  const project = await getCachedProject(id, session!.user.organizationId!);
+  const orgId = session?.user.organizationId ?? null;
+  const userId = session!.user.id;
+
+  const project = await getCachedProject(id, orgId ?? userId);
 
   if (!project) notFound();
 
