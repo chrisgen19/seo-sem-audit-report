@@ -12,12 +12,6 @@ import { z } from "zod";
 
 export const maxDuration = 300;
 
-function isUnknownArgumentError(err: unknown, argName: string) {
-  if (!err || typeof err !== "object") return false;
-  const message = "message" in err ? (err as { message?: unknown }).message : undefined;
-  return typeof message === "string" && message.includes(`Unknown argument \`${argName}\``);
-}
-
 const bodySchema = z.object({
   pageId: z.string().min(1),
   provider: z.enum(["gemini"]),
@@ -117,19 +111,10 @@ export async function POST(req: Request) {
   const { pageId, provider } = parsed.data;
 
   // Verify access via Page → Project → Organization
-  const page = await db.page
-    .findFirst({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      where: { id: pageId, project: { organizationId: ctx.organizationId } } as any,
-      include: { project: { select: { id: true, name: true } } },
-    })
-    .catch((err) => {
-      if (!isUnknownArgumentError(err, "organizationId")) throw err;
-      return db.page.findFirst({
-        where: { id: pageId, project: { userId: ctx.userId } },
-        include: { project: { select: { id: true, name: true } } },
-      });
-    });
+  const page = await db.page.findFirst({
+    where: { id: pageId, project: { organizationId: ctx.organizationId } },
+    include: { project: { select: { id: true, name: true } } },
+  });
   if (!page) {
     return Response.json({ error: "Page not found" }, { status: 404 });
   }

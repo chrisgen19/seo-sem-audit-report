@@ -14,8 +14,7 @@
 
 import { PrismaClient } from "@prisma/client";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = new PrismaClient() as any;
+const db = new PrismaClient();
 
 async function main() {
   console.log("Starting org migration...\n");

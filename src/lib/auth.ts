@@ -54,27 +54,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Refresh org context on sign-in or when session is updated
       if (user || trigger === "update") {
-        const organizationMemberDelegate = (db as unknown as { organizationMember?: unknown })
-          .organizationMember as
-          | {
-              findFirst?: (args: unknown) => Promise<{
-                organizationId: string | null;
-                role: string | null;
-                status: string | null;
-              } | null>;
-            }
-          | undefined;
-
-        const membership = organizationMemberDelegate?.findFirst
-          ? await organizationMemberDelegate.findFirst({
-              where: { userId: token.id as string },
-              orderBy: { joinedAt: "asc" },
-              select: { organizationId: true, role: true, status: true },
-            })
-          : null;
+        const membership = await db.organizationMember.findFirst({
+          where: { userId: token.id as string },
+          orderBy: { joinedAt: "asc" },
+          select: { organizationId: true, role: true, status: true },
+        });
         // Only expose organizationId when ACTIVE — PENDING users must wait for approval
-        token.organizationId =
-          membership?.status === "ACTIVE" ? (membership.organizationId ?? null) : null;
+        token.organizationId = membership?.status === "ACTIVE" ? (membership.organizationId ?? null) : null;
         token.role = membership?.status === "ACTIVE" ? (membership.role ?? null) : null;
         token.memberStatus = membership?.status ?? null;
       }

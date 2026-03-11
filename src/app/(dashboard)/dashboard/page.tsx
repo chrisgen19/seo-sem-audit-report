@@ -8,10 +8,9 @@ import { Globe, ChevronRight, BarChart2, FileText, Clock } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const orgId = session?.user.organizationId ?? null;
-  const userId = session!.user.id;
+  const orgId = session!.user.organizationId!;
 
-  const { projects, recentAudits } = await getCachedDashboardData({ orgId, userId });
+  const { projects, recentAudits } = await getCachedDashboardData(orgId);
 
   const totalPages = projects.reduce((sum, p) => sum + p._count.pages, 0);
   const allLatestScores = projects

@@ -9,10 +9,7 @@ import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
 export default async function ProjectsPage() {
   const session = await auth();
 
-  const orgId = session?.user.organizationId ?? null;
-  const userId = session!.user.id;
-
-  const projects = await getCachedProjects(orgId ?? userId);
+  const projects = await getCachedProjects(session!.user.organizationId!);
 
   return (
     <div>

@@ -1,8 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = new PrismaClient() as any;
+const db = new PrismaClient();
 
 async function main() {
   // Create demo user

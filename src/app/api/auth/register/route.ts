@@ -25,8 +25,7 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { user, isFirstUser } = await db.$transaction(async (tx: any) => {
+    const { user, isFirstUser } = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: { name, email, passwordHash },
         select: { id: true, email: true, name: true },
