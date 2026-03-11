@@ -3,11 +3,23 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
+function orgTablesAvailable() {
+  const d = db as unknown as { organizationMember?: unknown };
+  const delegate = d.organizationMember as { findMany?: unknown; create?: unknown; findFirst?: unknown; count?: unknown } | undefined;
+  return !!delegate?.findMany;
+}
+
 /** GET /api/admin/members — list all org members */
 export async function GET() {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
   const members = await db.organizationMember.findMany({
     where: { organizationId: ctx.organizationId },
@@ -32,6 +44,12 @@ export async function POST(req: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -76,6 +94,12 @@ export async function PATCH(req: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(ctx)) return Response.json({ error: "Admin only" }, { status: 403 });
+  if (!orgTablesAvailable()) {
+    return Response.json(
+      { error: "Organization members feature is not available in this database schema." },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);

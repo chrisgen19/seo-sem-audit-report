@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 import { revalidateProjects } from "@/lib/cache";
 import { z } from "zod";
 
+function isUnknownArgumentError(err: unknown, argName: string) {
+  if (!err || typeof err !== "object") return false;
+  const message = "message" in err ? (err as { message?: unknown }).message : undefined;
+  return typeof message === "string" && message.includes(`Unknown argument \`${argName}\``);
+}
+
 const schema = z.object({ ids: z.array(z.string()).min(1) });
 
 export async function DELETE(req: Request) {
@@ -15,12 +21,22 @@ export async function DELETE(req: Request) {
 
   const { ids } = parsed.data;
 
-  await db.auditRun.deleteMany({
-    where: {
-      id: { in: ids },
-      page: { project: { organizationId: ctx.organizationId } },
-    },
-  });
+  await db.auditRun
+    .deleteMany({
+      where: {
+        id: { in: ids },
+        page: { project: { organizationId: ctx.organizationId } },
+      },
+    })
+    .catch((err) => {
+      if (!isUnknownArgumentError(err, "organizationId")) throw err;
+      return db.auditRun.deleteMany({
+        where: {
+          id: { in: ids },
+          page: { project: { userId: ctx.userId } },
+        },
+      });
+    });
 
   revalidateProjects();
 
