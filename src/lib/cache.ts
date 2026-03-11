@@ -8,6 +8,71 @@ function isUnknownArgumentError(err: unknown, argName: string) {
   return typeof message === "string" && message.includes(`Unknown argument \`${argName}\``);
 }
 
+// ─── Payload types (collapse union from .catch() back-compat fallback) ──────
+
+type DashboardProject = Prisma.ProjectGetPayload<{
+  select: {
+    _count: { select: { pages: true } };
+    pages: { select: { auditRuns: { select: { overallScore: true } } } };
+  };
+}>;
+
+type DashboardAuditRun = Prisma.AuditRunGetPayload<{
+  select: {
+    id: true; overallScore: true; technicalScore: true; contentScore: true;
+    semScore: true; createdAt: true; provider: true;
+    page: { select: { id: true; name: true; project: { select: { id: true; name: true } } } };
+  };
+}>;
+
+type ProjectWithPages = Prisma.ProjectGetPayload<{
+  include: {
+    _count: { select: { pages: true } };
+    pages: {
+      include: {
+        auditRuns: {
+          select: {
+            id: true; overallScore: true; overallGrade: true; technicalScore: true;
+            contentScore: true; semScore: true; createdAt: true;
+            meta: { select: { rawCrawlData: true } };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ProjectDetail = Prisma.ProjectGetPayload<{
+  include: {
+    pages: {
+      include: {
+        auditRuns: {
+          select: {
+            id: true; overallScore: true; overallGrade: true; technicalScore: true;
+            contentScore: true; semScore: true; createdAt: true;
+            meta: { select: { rawCrawlData: true } };
+          };
+        };
+        _count: { select: { auditRuns: true } };
+      };
+    };
+  };
+}> | null;
+
+type PageDetail = Prisma.PageGetPayload<{
+  include: {
+    project: { select: { id: true; name: true } };
+    auditRuns: {
+      select: {
+        id: true; status: true; provider: true; overallScore: true; overallGrade: true;
+        technicalScore: true; technicalGrade: true; contentScore: true; contentGrade: true;
+        semScore: true; semGrade: true; createdAt: true; completedAt: true; errorMessage: true;
+        meta: { select: { rawCrawlData: true } };
+      };
+    };
+  };
+}> | null;
+
 // ─── Dashboard ──────────────────────────────────────────────
 
 export function getCachedDashboardData(params: { orgId: string | null; userId: string }) {
@@ -105,7 +170,7 @@ export function getCachedDashboardData(params: { orgId: string | null; userId: s
           });
         });
 
-      const [projects, recentAudits] = await Promise.all([projectsPromise, recentAuditsPromise]);
+      const [projects, recentAudits] = await Promise.all([projectsPromise, recentAuditsPromise]) as [DashboardProject[], DashboardAuditRun[]];
 
       return { projects, recentAudits };
     },
@@ -119,10 +184,9 @@ export function getCachedDashboardData(params: { orgId: string | null; userId: s
 export function getCachedProjects(orgId: string) {
   return unstable_cache(
     async () => {
-      return db.project
+      return (db.project
         .findMany({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          where: { organizationId: orgId } as any,
+          where: { organizationId: orgId } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           orderBy: { updatedAt: "desc" },
           include: {
             _count: { select: { pages: true } },
@@ -176,7 +240,7 @@ export function getCachedProjects(orgId: string) {
               },
             },
           });
-        });
+        })) as Promise<ProjectWithPages[]>;
     },
     [`projects-${orgId}`],
     { tags: ["projects"], revalidate: 60 }
@@ -188,10 +252,9 @@ export function getCachedProjects(orgId: string) {
 export function getCachedProject(projectId: string, orgId: string) {
   return unstable_cache(
     async () => {
-      return db.project
+      return (db.project
         .findFirst({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          where: { id: projectId, organizationId: orgId } as any,
+          where: { id: projectId, organizationId: orgId } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           include: {
             pages: {
               orderBy: { createdAt: "asc" },
@@ -244,7 +307,7 @@ export function getCachedProject(projectId: string, orgId: string) {
               },
             },
           });
-        });
+        })) as Promise<ProjectDetail>;
     },
     [`project-${projectId}`],
     { tags: [`project-${projectId}`, "projects"], revalidate: 60 }
@@ -256,10 +319,9 @@ export function getCachedProject(projectId: string, orgId: string) {
 export function getCachedPage(pageId: string, projectId: string, orgId: string) {
   return unstable_cache(
     async () => {
-      return db.page
+      return (db.page
         .findFirst({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          where: { id: pageId, projectId, project: { organizationId: orgId } } as any,
+          where: { id: pageId, projectId, project: { organizationId: orgId } } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           include: {
             project: { select: { id: true, name: true } },
             auditRuns: {
@@ -312,7 +374,7 @@ export function getCachedPage(pageId: string, projectId: string, orgId: string) 
               },
             },
           });
-        });
+        })) as Promise<PageDetail>;
     },
     [`page-${pageId}`],
     { tags: [`page-${pageId}`, `project-${projectId}`], revalidate: 60 }
