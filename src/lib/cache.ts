@@ -1,5 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "./db";
+import type { Prisma } from "@prisma/client";
 
 function isUnknownArgumentError(err: unknown, argName: string) {
   if (!err || typeof err !== "object") return false;
@@ -320,13 +321,21 @@ export function getCachedPage(pageId: string, projectId: string, orgId: string) 
 
 // ─── Audit Result ───────────────────────────────────────────
 
+// Explicit payload type — avoids union type ambiguity from the .catch() back-compat fallback
+type AuditRunResult = Prisma.AuditRunGetPayload<{
+  include: {
+    page: { select: { id: true; name: true; project: { select: { id: true; name: true } } } };
+    checks: true;
+    meta: true;
+  };
+}> | null;
+
 export function getCachedAuditRun(auditId: string, orgId: string) {
   return unstable_cache(
     async () => {
-      const auditRun = await db.auditRun
+      const auditRun = (await db.auditRun
         .findFirst({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          where: { id: auditId, page: { project: { organizationId: orgId } } } as any,
+          where: { id: auditId, page: { project: { organizationId: orgId } } } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           include: {
             page: {
               select: {
@@ -355,7 +364,7 @@ export function getCachedAuditRun(auditId: string, orgId: string) {
               meta: true,
             },
           });
-        });
+        })) as AuditRunResult;
 
       if (!auditRun) return null;
 
