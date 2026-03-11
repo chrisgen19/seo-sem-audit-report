@@ -26,7 +26,8 @@ export async function GET(
 
   const auditRun = await db.auditRun
     .findFirst({
-      where: { id, page: { project: { organizationId: ctx.organizationId } } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, page: { project: { organizationId: ctx.organizationId } } } as any,
       include: {
         page: {
           select: {

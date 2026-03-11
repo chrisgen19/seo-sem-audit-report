@@ -21,7 +21,8 @@ export async function GET() {
 
   const projects = await db.project
     .findMany({
-      where: { organizationId: ctx.organizationId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { organizationId: ctx.organizationId } as any,
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { pages: true } },
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
         organizationId: ctx.organizationId,
         name: parsed.data.name,
         domain: normalizeUrl(parsed.data.domain),
-      },
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     })
     .catch((err) => {
       if (!isUnknownArgumentError(err, "organizationId")) throw err;

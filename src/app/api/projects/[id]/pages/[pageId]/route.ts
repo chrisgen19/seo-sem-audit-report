@@ -23,7 +23,7 @@ export async function GET(
         id: pageId,
         projectId: id,
         project: { organizationId: ctx.organizationId },
-      },
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
       include: {
         project: { select: { id: true, name: true, domain: true } },
         auditRuns: {
@@ -99,7 +99,7 @@ export async function DELETE(
         id: pageId,
         projectId: id,
         project: { organizationId: ctx.organizationId },
-      },
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     })
     .catch((err) => {
       if (!isUnknownArgumentError(err, "organizationId")) throw err;

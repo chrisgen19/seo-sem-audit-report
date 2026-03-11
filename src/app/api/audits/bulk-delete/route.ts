@@ -26,7 +26,7 @@ export async function DELETE(req: Request) {
       where: {
         id: { in: ids },
         page: { project: { organizationId: ctx.organizationId } },
-      },
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     })
     .catch((err) => {
       if (!isUnknownArgumentError(err, "organizationId")) throw err;

@@ -22,7 +22,7 @@ export async function GET(
       where: {
         id,
         page: { project: { organizationId: ctx.organizationId } },
-      },
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
       include: {
         page: {
           select: {
@@ -73,7 +73,7 @@ export async function DELETE(
 
   const auditRun = await db.auditRun
     .findFirst({
-      where: { id, page: { project: { organizationId: ctx.organizationId } } },
+      where: { id, page: { project: { organizationId: ctx.organizationId } } } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
       include: { page: { select: { id: true, projectId: true } } },
     })
     .catch((err) => {

@@ -15,7 +15,8 @@ export function getCachedDashboardData(params: { orgId: string | null; userId: s
     async () => {
       const projectsPromise = db.project
         .findMany({
-          where: { organizationId: orgId },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: { organizationId: orgId } as any,
           select: {
             _count: { select: { pages: true } },
             pages: {
@@ -55,7 +56,7 @@ export function getCachedDashboardData(params: { orgId: string | null; userId: s
           where: {
             status: "done",
             page: { project: { organizationId: orgId } },
-          },
+          } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           orderBy: { createdAt: "desc" },
           take: 10,
           select: {
@@ -119,7 +120,8 @@ export function getCachedProjects(orgId: string) {
     async () => {
       return db.project
         .findMany({
-          where: { organizationId: orgId },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: { organizationId: orgId } as any,
           orderBy: { updatedAt: "desc" },
           include: {
             _count: { select: { pages: true } },
@@ -187,7 +189,8 @@ export function getCachedProject(projectId: string, orgId: string) {
     async () => {
       return db.project
         .findFirst({
-          where: { id: projectId, organizationId: orgId },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: { id: projectId, organizationId: orgId } as any,
           include: {
             pages: {
               orderBy: { createdAt: "asc" },
@@ -254,7 +257,8 @@ export function getCachedPage(pageId: string, projectId: string, orgId: string) 
     async () => {
       return db.page
         .findFirst({
-          where: { id: pageId, projectId, project: { organizationId: orgId } },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: { id: pageId, projectId, project: { organizationId: orgId } } as any,
           include: {
             project: { select: { id: true, name: true } },
             auditRuns: {
@@ -321,7 +325,8 @@ export function getCachedAuditRun(auditId: string, orgId: string) {
     async () => {
       const auditRun = await db.auditRun
         .findFirst({
-          where: { id: auditId, page: { project: { organizationId: orgId } } },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: { id: auditId, page: { project: { organizationId: orgId } } } as any,
           include: {
             page: {
               select: {

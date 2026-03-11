@@ -1,6 +1,9 @@
 import { auth } from "./auth";
 import { db } from "./db";
-import type { OrgRole, MemberStatus } from "@prisma/client";
+
+// Defined locally — these enums only exist in the DB schema after the org migration
+type OrgRole = string;
+type MemberStatus = string;
 
 export interface OrgContext {
   userId: string;

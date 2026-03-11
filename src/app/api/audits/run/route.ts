@@ -119,7 +119,8 @@ export async function POST(req: Request) {
   // Verify access via Page → Project → Organization
   const page = await db.page
     .findFirst({
-      where: { id: pageId, project: { organizationId: ctx.organizationId } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id: pageId, project: { organizationId: ctx.organizationId } } as any,
       include: { project: { select: { id: true, name: true } } },
     })
     .catch((err) => {

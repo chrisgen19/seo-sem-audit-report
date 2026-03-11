@@ -26,7 +26,8 @@ export async function GET(
 
   const project = await db.project
     .findFirst({
-      where: { id, organizationId: ctx.organizationId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, organizationId: ctx.organizationId } as any,
     })
     .catch((err) => {
       if (!isUnknownArgumentError(err, "organizationId")) throw err;
@@ -71,7 +72,8 @@ export async function POST(
 
   const project = await db.project
     .findFirst({
-      where: { id, organizationId: ctx.organizationId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: { id, organizationId: ctx.organizationId } as any,
     })
     .catch((err) => {
       if (!isUnknownArgumentError(err, "organizationId")) throw err;
