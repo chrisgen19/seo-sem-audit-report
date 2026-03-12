@@ -6,6 +6,7 @@ import { ScoreBadge } from "@/components/audit/score-card";
 import { formatDate } from "@/lib/utils";
 import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
 import { ProjectFavicon } from "@/components/project/project-favicon";
+import { DeleteProjectButton } from "@/components/project/delete-project-button";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -49,69 +50,76 @@ export default async function ProjectsPage() {
             )[0];
 
             return (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}`}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-500 hover:shadow-sm transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-4">
-                  <ProjectFavicon domain={project.domain} />
-                  <div>
-                    <p className="font-semibold text-gray-900">{project.name}</p>
-                    <p className="text-sm text-gray-400">{project.domain}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                    <FileText className="h-4 w-4" />
-                    {project._count.pages} {project._count.pages === 1 ? "page" : "pages"}
+              <div key={project.id} className="relative group">
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-500 hover:shadow-sm transition-all flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <ProjectFavicon domain={project.domain} />
+                    <div>
+                      <p className="font-semibold text-gray-900">{project.name}</p>
+                      <p className="text-sm text-gray-400">{project.domain}</p>
+                    </div>
                   </div>
 
-                  {latest ? (
-                    <>
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-gray-400">Last audit</p>
-                        <p className="text-sm text-gray-600">{formatDate(latest.createdAt)}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400 mb-1">Score</p>
-                        {latest.overallScore !== null ? (
-                          <ScoreBadge score={latest.overallScore!} />
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-5 gap-2 text-center hidden md:grid">
-                        {(() => {
-                          const rawCrawl = latest.meta?.rawCrawlData as Record<string, unknown> | null;
-                          const psiMobile = (rawCrawl?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
-                          const psiDesktop = (rawCrawl?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
-                          return [
-                            { label: "Tech", score: latest.technicalScore },
-                            { label: "Content", score: latest.contentScore },
-                            { label: "SEM", score: latest.semScore },
-                            { label: "PSI M", score: psiMobile ?? null },
-                            { label: "PSI D", score: psiDesktop ?? null },
-                          ].map(({ label, score }) => (
-                            <div key={label}>
-                              <p className="text-xs text-gray-400">{label}</p>
-                              {score !== null ? (
-                                <ScoreBadge score={score!} />
-                              ) : (
-                                <span className="text-xs text-gray-300">—</span>
-                              )}
-                            </div>
-                          ));
-                        })()}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-400">No audits yet</span>
-                  )}
-                  <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                      <FileText className="h-4 w-4" />
+                      {project._count.pages} {project._count.pages === 1 ? "page" : "pages"}
+                    </div>
+
+                    {latest ? (
+                      <>
+                        <div className="text-right hidden sm:block">
+                          <p className="text-xs text-gray-400">Last audit</p>
+                          <p className="text-sm text-gray-600">{formatDate(latest.createdAt)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-400 mb-1">Score</p>
+                          {latest.overallScore !== null ? (
+                            <ScoreBadge score={latest.overallScore!} />
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-5 gap-2 text-center hidden md:grid">
+                          {(() => {
+                            const rawCrawl = latest.meta?.rawCrawlData as Record<string, unknown> | null;
+                            const psiMobile = (rawCrawl?.psi as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+                            const psiDesktop = (rawCrawl?.psi_desktop as Record<string, unknown> | undefined)?.performance_score as number | undefined;
+                            return [
+                              { label: "Tech", score: latest.technicalScore },
+                              { label: "Content", score: latest.contentScore },
+                              { label: "SEM", score: latest.semScore },
+                              { label: "PSI M", score: psiMobile ?? null },
+                              { label: "PSI D", score: psiDesktop ?? null },
+                            ].map(({ label, score }) => (
+                              <div key={label}>
+                                <p className="text-xs text-gray-400">{label}</p>
+                                {score !== null ? (
+                                  <ScoreBadge score={score!} />
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-400">No audits yet</span>
+                    )}
+                    <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  </div>
+                </Link>
+                <div className="absolute right-14 top-1/2 -translate-y-1/2">
+                  <DeleteProjectButton
+                    projectId={project.id}
+                    projectName={project.name}
+                  />
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
