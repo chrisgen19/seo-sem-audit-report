@@ -131,40 +131,36 @@ export function getCachedProject(projectId: string, orgId: string) {
 }
 
 // ─── Page Detail ────────────────────────────────────────────
+// Not cached — this page is loaded immediately after every audit run,
+// so it must always reflect the latest data from the DB.
 
 export function getCachedPage(pageId: string, projectId: string, orgId: string) {
-  return unstable_cache(
-    async () => {
-      return db.page.findFirst({
-        where: { id: pageId, projectId, project: { organizationId: orgId } },
-        include: {
-          project: { select: { id: true, name: true } },
-          auditRuns: {
-            orderBy: { createdAt: "asc" },
-            select: {
-              id: true,
-              status: true,
-              provider: true,
-              overallScore: true,
-              overallGrade: true,
-              technicalScore: true,
-              technicalGrade: true,
-              contentScore: true,
-              contentGrade: true,
-              semScore: true,
-              semGrade: true,
-              createdAt: true,
-              completedAt: true,
-              errorMessage: true,
-              meta: { select: { rawCrawlData: true } },
-            },
-          },
+  return db.page.findFirst({
+    where: { id: pageId, projectId, project: { organizationId: orgId } },
+    include: {
+      project: { select: { id: true, name: true } },
+      auditRuns: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          overallScore: true,
+          overallGrade: true,
+          technicalScore: true,
+          technicalGrade: true,
+          contentScore: true,
+          contentGrade: true,
+          semScore: true,
+          semGrade: true,
+          createdAt: true,
+          completedAt: true,
+          errorMessage: true,
+          meta: { select: { rawCrawlData: true } },
         },
-      });
+      },
     },
-    [`page-${pageId}`],
-    { tags: [`page-${pageId}`, `project-${projectId}`], revalidate: 60 }
-  )();
+  });
 }
 
 // ─── Audit Result ───────────────────────────────────────────
