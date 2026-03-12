@@ -176,9 +176,9 @@ export default async function ProjectPage({
                   </Link>
                   <Link
                     href={`/projects/${project.id}/pages/${page.id}`}
-                    className="p-1"
+                    className="flex items-center gap-0.5 text-brand-700 hover:text-brand-900 font-medium text-xs transition-colors whitespace-nowrap"
                   >
-                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                    View <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                   <DeletePageButton
                     projectId={project.id}
@@ -327,7 +327,9 @@ function PageRow({
               {page._count.auditRuns > 0 ? "No completed audits" : "Never audited"}
             </span>
           )}
-          <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+          <span className="flex items-center gap-0.5 text-brand-700 group-hover:text-brand-900 font-medium text-xs transition-colors whitespace-nowrap">
+            View <ChevronRight className="h-3.5 w-3.5" />
+          </span>
         </div>
       </Link>
       <DeletePageButton

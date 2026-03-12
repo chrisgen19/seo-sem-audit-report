@@ -136,7 +136,7 @@ export default async function DashboardPage() {
                     href={`/audits/${audit.id}`}
                     className="flex items-center gap-0.5 text-brand-700 hover:text-brand-900 text-sm font-medium transition-colors whitespace-nowrap"
                   >
-                    View <ChevronRight className="h-4 w-4" />
+                    View <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
               </div>

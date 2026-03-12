@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
 import { formatDate } from "@/lib/utils";
-import { Plus, Globe, Eye, FileText } from "lucide-react";
+import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
 import { ProjectFavicon } from "@/components/project/project-favicon";
 import { DeleteProjectButton } from "@/components/project/delete-project-button";
 
@@ -110,7 +110,9 @@ export default async function ProjectsPage() {
                     ) : (
                       <span className="text-sm text-gray-400">No audits yet</span>
                     )}
-                    <Eye className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                    <span className="flex items-center gap-0.5 text-brand-700 group-hover:text-brand-900 font-medium text-xs transition-colors whitespace-nowrap">
+                        View <ChevronRight className="h-3.5 w-3.5" />
+                      </span>
                   </div>
                 </Link>
                 {session?.user.role === "ADMIN" && (
