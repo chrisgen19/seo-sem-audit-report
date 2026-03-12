@@ -71,7 +71,7 @@ export function DeleteProjectButton({ projectId, projectName }: DeleteProjectBut
     <button
       onClick={handleClick}
       title={`Delete "${projectName}"`}
-      className="p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+      className="p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto"
     >
       <Trash2 className="h-4 w-4" />
     </button>
