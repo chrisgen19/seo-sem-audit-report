@@ -197,7 +197,6 @@ export default function RunAuditPage() {
             </div>
             <AuditProgress
               pageId={pageId}
-              projectId={projectId}
               provider="gemini"
               onCancel={() => router.back()}
             />
