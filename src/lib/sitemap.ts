@@ -76,11 +76,13 @@ export async function scanSitemap(domain: string): Promise<SitemapEntry[]> {
     // robots.txt not available, continue with defaults
   }
 
-  for (const candidate of candidates) {
+  // Deduplicate candidate URLs before scanning
+  const uniqueCandidates = [...new Set(candidates)];
+
+  for (const candidate of uniqueCandidates) {
     try {
       const found = await fetchSitemapUrls(candidate);
       for (const u of found) urls.add(u);
-      if (urls.size > 0) break; // got results, stop trying fallbacks
     } catch {
       continue;
     }

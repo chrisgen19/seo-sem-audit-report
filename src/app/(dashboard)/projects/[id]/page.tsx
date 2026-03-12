@@ -157,32 +157,35 @@ export default async function ProjectPage({
               >
                 <Link
                   href={`/projects/${project.id}/pages/${page.id}`}
-                  className="flex-1 flex items-center justify-between min-w-0"
+                  className="flex-1 min-w-0"
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
-                      {page.name}
-                    </p>
-                    <p className="text-sm text-gray-400 mt-0.5 truncate">
-                      {page.url}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
-                    <Link
-                      href={`/projects/${project.id}/pages/${page.id}/run`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 text-brand-900 rounded-lg hover:bg-brand-100 transition-colors text-xs font-medium"
-                    >
-                      <Play className="h-3 w-3" />
-                      Run Audit
-                    </Link>
-                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
-                  </div>
+                  <p className="font-medium text-gray-900 truncate">
+                    {page.name}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-0.5 truncate">
+                    {page.url}
+                  </p>
                 </Link>
-                <DeletePageButton
-                  projectId={project.id}
-                  pageId={page.id}
-                  pageName={page.name}
-                />
+                <div className="flex items-center gap-3 ml-4 shrink-0">
+                  <Link
+                    href={`/projects/${project.id}/pages/${page.id}/run`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 text-brand-900 rounded-lg hover:bg-brand-100 transition-colors text-xs font-medium"
+                  >
+                    <Play className="h-3 w-3" />
+                    Run Audit
+                  </Link>
+                  <Link
+                    href={`/projects/${project.id}/pages/${page.id}`}
+                    className="p-1"
+                  >
+                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  </Link>
+                  <DeletePageButton
+                    projectId={project.id}
+                    pageId={page.id}
+                    pageName={page.name}
+                  />
+                </div>
               </div>
             ))}
           </div>

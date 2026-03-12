@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Map,
@@ -39,6 +39,16 @@ export function SitemapImport({ projectId, autoScan = false }: SitemapImportProp
   const [expanded, setExpanded] = useState(autoScan);
   const [filter, setFilter] = useState("");
   const [hasScanned, setHasScanned] = useState(false);
+  const autoScannedRef = useRef(false);
+
+  // Auto-trigger scan when redirected from new-project with ?sitemap=pending
+  useEffect(() => {
+    if (autoScan && !autoScannedRef.current) {
+      autoScannedRef.current = true;
+      handleScan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoScan]);
 
   async function handleScan() {
     setScanning(true);
