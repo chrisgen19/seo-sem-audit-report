@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
 import { formatDate } from "@/lib/utils";
-import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
+import { Plus, Globe, Eye, FileText } from "lucide-react";
 import { ProjectFavicon } from "@/components/project/project-favicon";
 import { DeleteProjectButton } from "@/components/project/delete-project-button";
 
@@ -50,20 +50,20 @@ export default async function ProjectsPage() {
             )[0];
 
             return (
-              <div key={project.id} className="relative group">
+              <div key={project.id} className="group flex items-center bg-white rounded-xl border border-gray-200 hover:border-brand-500 hover:shadow-sm transition-all">
                 <Link
                   href={`/projects/${project.id}`}
-                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-500 hover:shadow-sm transition-all flex items-center justify-between"
+                  className="flex-1 p-5 flex items-center justify-between gap-6 min-w-0"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
                     <ProjectFavicon domain={project.domain} />
-                    <div>
-                      <p className="font-semibold text-gray-900">{project.name}</p>
-                      <p className="text-sm text-gray-400">{project.domain}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{project.name}</p>
+                      <p className="text-sm text-gray-400 truncate">{project.domain}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-6 shrink-0">
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
                       <FileText className="h-4 w-4" />
                       {project._count.pages} {project._count.pages === 1 ? "page" : "pages"}
@@ -110,11 +110,11 @@ export default async function ProjectsPage() {
                     ) : (
                       <span className="text-sm text-gray-400">No audits yet</span>
                     )}
-                    <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                    <Eye className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
                   </div>
                 </Link>
                 {session?.user.role === "ADMIN" && (
-                  <div className="absolute right-14 top-1/2 -translate-y-1/2">
+                  <div className="pr-3">
                     <DeleteProjectButton
                       projectId={project.id}
                       projectName={project.name}
