@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header";
 import { ScoreBadge } from "@/components/audit/score-card";
 import { formatDate } from "@/lib/utils";
 import { Plus, Globe, ChevronRight, FileText } from "lucide-react";
+import { ProjectFavicon } from "@/components/project/project-favicon";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -54,9 +55,7 @@ export default async function ProjectsPage() {
                 className="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-500 hover:shadow-sm transition-all flex items-center justify-between group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
-                    <Globe className="h-5 w-5 text-brand-700" />
-                  </div>
+                  <ProjectFavicon domain={project.domain} />
                   <div>
                     <p className="font-semibold text-gray-900">{project.name}</p>
                     <p className="text-sm text-gray-400">{project.domain}</p>
