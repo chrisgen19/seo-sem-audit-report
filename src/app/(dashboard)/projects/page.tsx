@@ -113,12 +113,14 @@ export default async function ProjectsPage() {
                     <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors" />
                   </div>
                 </Link>
-                <div className="absolute right-14 top-1/2 -translate-y-1/2">
-                  <DeleteProjectButton
-                    projectId={project.id}
-                    projectName={project.name}
-                  />
-                </div>
+                {session?.user.role === "ADMIN" && (
+                  <div className="absolute right-14 top-1/2 -translate-y-1/2">
+                    <DeleteProjectButton
+                      projectId={project.id}
+                      projectName={project.name}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
