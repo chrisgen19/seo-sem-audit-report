@@ -94,40 +94,36 @@ export function getCachedProjects(orgId: string) {
 }
 
 // ─── Project Detail ─────────────────────────────────────────
+// Not cached — this page must reflect audit results immediately
+// (revalidateTag does not work inside ReadableStream).
 
 export function getCachedProject(projectId: string, orgId: string) {
-  return unstable_cache(
-    async () => {
-      return db.project.findFirst({
-        where: { id: projectId, organizationId: orgId },
+  return db.project.findFirst({
+    where: { id: projectId, organizationId: orgId },
+    include: {
+      pages: {
+        orderBy: { createdAt: "asc" },
         include: {
-          pages: {
-            orderBy: { createdAt: "asc" },
-            include: {
-              auditRuns: {
-                where: { status: "done" },
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  overallScore: true,
-                  overallGrade: true,
-                  technicalScore: true,
-                  contentScore: true,
-                  semScore: true,
-                  createdAt: true,
-                  meta: { select: { rawCrawlData: true } },
-                },
-              },
-              _count: { select: { auditRuns: true } },
+          auditRuns: {
+            where: { status: "done" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              overallScore: true,
+              overallGrade: true,
+              technicalScore: true,
+              contentScore: true,
+              semScore: true,
+              createdAt: true,
+              meta: { select: { rawCrawlData: true } },
             },
           },
+          _count: { select: { auditRuns: true } },
         },
-      });
+      },
     },
-    [`project-${projectId}`],
-    { tags: [`project-${projectId}`, "projects"], revalidate: 60 }
-  )();
+  });
 }
 
 // ─── Page Detail ────────────────────────────────────────────
