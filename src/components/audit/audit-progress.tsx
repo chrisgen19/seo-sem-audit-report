@@ -6,7 +6,6 @@ import type { AuditStreamEvent } from "@/types/audit";
 
 interface AuditProgressProps {
   pageId: string;
-  projectId: string;
   provider: "gemini";
   onCancel: () => void;
 }
@@ -20,7 +19,7 @@ interface LogEntry {
 const DONE_STEPS = new Set(["crawl_done", "analyze_done", "done"]);
 const ERROR_STEP = "error";
 
-export function AuditProgress({ pageId, projectId, provider, onCancel }: AuditProgressProps) {
+export function AuditProgress({ pageId, provider, onCancel }: AuditProgressProps) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [isDone, setIsDone] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -76,13 +75,7 @@ export function AuditProgress({ pageId, projectId, provider, onCancel }: AuditPr
 
             if (event.step === "done") {
               setIsDone(true);
-              // Redirect to page detail with full reload so audit history shows the new run
-              // (bypasses Next.js client router cache which can show stale data)
-              const target =
-                projectId && pageId
-                  ? `/projects/${projectId}/pages/${pageId}`
-                  : `/audits/${event.auditId}`;
-              setTimeout(() => (window.location.href = target), 800);
+              setTimeout(() => (window.location.href = `/audits/${event.auditId}`), 800);
               return;
             }
             if (event.step === "error") {
